@@ -37,12 +37,23 @@
     padding: 8px; min-height: 0;
   }
   .team {
+    position: relative; overflow: hidden;
     border-radius: 18px; padding: 14px;
     display: flex; flex-direction: column; align-items: center; justify-content: space-between;
     min-height: 0;
   }
   .team.home { background: linear-gradient(160deg, #1e3a8a, #1d4ed8); }
   .team.away { background: linear-gradient(160deg, #b91c1c, #dc2626); }
+  .logo {
+    position: absolute; top: 50%; left: 50%;
+    width: 70%; max-width: 320px; height: auto;
+    transform: translate(-50%, -50%);
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+  }
+  .logo.visible { opacity: 0.22; }
+  .name, .score, .buttons { position: relative; z-index: 1; }
   .name {
     background: rgba(255,255,255,0.1); border: none; color: white;
     font-size: clamp(18px, 3.5vh, 30px); font-weight: 700;
@@ -101,7 +112,8 @@
 
   <div class="teams">
     <div class="team home">
-      <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="12" />
+      <img class="logo" id="logoA" alt="" />
+      <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="30" />
       <div class="score" id="scoreA">0</div>
       <div class="buttons">
         <button class="sbtn" data-team="A" data-amt="1">+1</button>
@@ -111,7 +123,8 @@
       </div>
     </div>
     <div class="team away">
-      <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="12" />
+      <img class="logo" id="logoB" alt="" />
+      <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="30" />
       <div class="score" id="scoreB">0</div>
       <div class="buttons">
         <button class="sbtn" data-team="B" data-amt="1">+1</button>
@@ -123,7 +136,7 @@
   </div>
 
   <div class="footer">
-    <button id="reset" class="danger">Reset game</button>
+    <button id="reset" class="danger">Herbeginnen</button>
   </div>
 
 <script>
@@ -133,6 +146,104 @@
   const ql = document.getElementById('qLabel');
   const nameA = document.getElementById('nameA');
   const nameB = document.getElementById('nameB');
+  const logoA = document.getElementById('logoA');
+  const logoB = document.getElementById('logoB');
+
+  // --- NBA team logos via fuzzy name match (ESPN CDN) ---
+  const NBA_TEAMS = [
+    { abbr: 'atl', names: ['atlanta hawks', 'hawks', 'atlanta', 'atl'] },
+    { abbr: 'bos', names: ['boston celtics', 'celtics', 'boston', 'bos'] },
+    { abbr: 'bkn', names: ['brooklyn nets', 'nets', 'brooklyn', 'bkn', 'bro'] },
+    { abbr: 'cha', names: ['charlotte hornets', 'hornets', 'charlotte', 'cha', 'cho'] },
+    { abbr: 'chi', names: ['chicago bulls', 'bulls', 'chicago', 'chi'] },
+    { abbr: 'cle', names: ['cleveland cavaliers', 'cavaliers', 'cavs', 'cleveland', 'cle'] },
+    { abbr: 'dal', names: ['dallas mavericks', 'mavericks', 'mavs', 'dallas', 'dal'] },
+    { abbr: 'den', names: ['denver nuggets', 'nuggets', 'denver', 'den'] },
+    { abbr: 'det', names: ['detroit pistons', 'pistons', 'detroit', 'det'] },
+    { abbr: 'gs',  names: ['golden state warriors', 'warriors', 'golden state', 'gsw', 'gs'] },
+    { abbr: 'hou', names: ['houston rockets', 'rockets', 'houston', 'hou'] },
+    { abbr: 'ind', names: ['indiana pacers', 'pacers', 'indiana', 'ind'] },
+    { abbr: 'lac', names: ['los angeles clippers', 'la clippers', 'clippers', 'lac'] },
+    { abbr: 'lal', names: ['los angeles lakers', 'la lakers', 'lakers', 'lal'] },
+    { abbr: 'mem', names: ['memphis grizzlies', 'grizzlies', 'memphis', 'mem'] },
+    { abbr: 'mia', names: ['miami heat', 'heat', 'miami', 'mia'] },
+    { abbr: 'mil', names: ['milwaukee bucks', 'bucks', 'milwaukee', 'mil'] },
+    { abbr: 'min', names: ['minnesota timberwolves', 'timberwolves', 'wolves', 'minnesota', 'min'] },
+    { abbr: 'no',  names: ['new orleans pelicans', 'pelicans', 'new orleans', 'nop'] },
+    { abbr: 'ny',  names: ['new york knicks', 'knicks', 'new york', 'nyk'] },
+    { abbr: 'okc', names: ['oklahoma city thunder', 'thunder', 'oklahoma city', 'oklahoma', 'okc'] },
+    { abbr: 'orl', names: ['orlando magic', 'magic', 'orlando', 'orl'] },
+    { abbr: 'phi', names: ['philadelphia 76ers', '76ers', 'sixers', 'philadelphia', 'phi'] },
+    { abbr: 'phx', names: ['phoenix suns', 'suns', 'phoenix', 'phx', 'pho'] },
+    { abbr: 'por', names: ['portland trail blazers', 'trail blazers', 'blazers', 'portland', 'por'] },
+    { abbr: 'sac', names: ['sacramento kings', 'kings', 'sacramento', 'sac'] },
+    { abbr: 'sa',  names: ['san antonio spurs', 'spurs', 'san antonio', 'sas'] },
+    { abbr: 'tor', names: ['toronto raptors', 'raptors', 'toronto', 'tor'] },
+    { abbr: 'utah', names: ['utah jazz', 'jazz', 'utah', 'uta'] },
+    { abbr: 'wsh', names: ['washington wizards', 'wizards', 'washington', 'was', 'wsh'] }
+  ];
+
+  function normalizeName(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function lev(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    let prev = new Array(b.length + 1);
+    let curr = new Array(b.length + 1);
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      curr[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        curr[j] = Math.min(
+          prev[j] + 1,
+          curr[j-1] + 1,
+          prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)
+        );
+      }
+      [prev, curr] = [curr, prev];
+    }
+    return prev[b.length];
+  }
+
+  function findTeam(input) {
+    const q = normalizeName(input);
+    if (q.length < 2) return null;
+    let best = null, bestRatio = 1;
+    for (const t of NBA_TEAMS) {
+      for (const alias of t.names) {
+        const a = normalizeName(alias);
+        if (q === a) return t;
+        if (a.length >= 4 && (q.includes(a) || (q.length >= 4 && a.includes(q)))) {
+          if (bestRatio > 0.05) { best = t; bestRatio = 0.05; }
+          continue;
+        }
+        const d = lev(q, a);
+        const ratio = d / Math.max(q.length, a.length);
+        if (ratio <= 0.3 && ratio < bestRatio) { best = t; bestRatio = ratio; }
+      }
+    }
+    return best;
+  }
+
+  function updateLogo(input, imgEl) {
+    const team = findTeam(input.value);
+    if (team) {
+      const url = `https://a.espncdn.com/i/teamlogos/nba/500/${team.abbr}.png`;
+      if (imgEl.dataset.abbr !== team.abbr) {
+        imgEl.dataset.abbr = team.abbr;
+        imgEl.src = url;
+      }
+      imgEl.classList.add('visible');
+    } else {
+      imgEl.classList.remove('visible');
+      imgEl.removeAttribute('src');
+      delete imgEl.dataset.abbr;
+    }
+  }
 
   // --- Persistence: try localStorage, fall back to URL hash ---
   const STORAGE_KEY = 'scoreboard_state_v1';
@@ -197,11 +308,11 @@
     render();
   });
 
-  nameA.addEventListener('input', save);
-  nameB.addEventListener('input', save);
+  nameA.addEventListener('input', () => { updateLogo(nameA, logoA); save(); });
+  nameB.addEventListener('input', () => { updateLogo(nameB, logoB); save(); });
 
   document.getElementById('reset').addEventListener('click', () => {
-    if (confirm('Reset both scores and quarter?')) {
+    if (confirm('Beide scores en kwart herbeginnen?')) {
       scoreA = 0; scoreB = 0; quarter = 1;
       render();
     }
@@ -216,8 +327,24 @@
     lastTap = now;
   }, {passive:false});
 
+  // Keep screen awake (iPadOS 16.4+, modern browsers)
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
+  });
+  requestWakeLock();
+
   load();
   render();
+  updateLogo(nameA, logoA);
+  updateLogo(nameB, logoB);
 </script>
 </body>
 </html>
