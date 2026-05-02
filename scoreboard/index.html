@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0b1020" />
+<title>Scoreboard</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #0b1020; color: white;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .quarter-bar {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    padding: 10px; background: #11172b; border-bottom: 1px solid #1f2a44;
+    font-size: clamp(16px, 2.5vh, 22px);
+  }
+  .qbtn {
+    background: #1f2a44; color: white; border: none; border-radius: 10px;
+    width: 44px; height: 44px; font-size: 22px; font-weight: 700; cursor: pointer;
+  }
+  .qbtn:active { background: #2c3a5e; }
+  .qlabel { min-width: 110px; text-align: center; font-weight: 600; letter-spacing: 0.5px; }
+  .teams {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 8px; min-height: 0;
+  }
+  .team {
+    border-radius: 18px; padding: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    min-height: 0;
+  }
+  .team.home { background: linear-gradient(160deg, #1e3a8a, #1d4ed8); }
+  .team.away { background: linear-gradient(160deg, #b91c1c, #dc2626); }
+  .name {
+    background: rgba(255,255,255,0.1); border: none; color: white;
+    font-size: clamp(18px, 3.5vh, 30px); font-weight: 700;
+    text-align: center; width: 100%; outline: none;
+    user-select: text; -webkit-user-select: text;
+    padding: 8px; border-radius: 8px;
+    border: 1px dashed rgba(255,255,255,0.4);
+  }
+  .name:focus { background: rgba(255,255,255,0.2); border-style: solid; }
+  .score {
+    font-size: clamp(110px, 28vh, 240px);
+    font-weight: 900; line-height: 1; margin: 6px 0;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .buttons {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%;
+  }
+  .sbtn {
+    background: white; border: none; border-radius: 12px;
+    padding: 14px 0; font-size: clamp(16px, 2.5vh, 22px); font-weight: 800;
+    cursor: pointer;
+  }
+  .sbtn:active { transform: scale(0.95); }
+  .home .sbtn { color: #1e3a8a; }
+  .away .sbtn { color: #b91c1c; }
+  .sbtn.minus {
+    background: rgba(255,255,255,0.18); color: white !important;
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .footer {
+    display: flex; justify-content: center; gap: 12px;
+    padding: 10px; background: #11172b; border-top: 1px solid #1f2a44;
+  }
+  .footer button {
+    background: #374151; color: white; border: none; border-radius: 10px;
+    padding: 10px 22px; font-size: 16px; font-weight: 600; cursor: pointer;
+  }
+  .footer button.danger { background: #7f1d1d; }
+  .footer button:active { opacity: 0.8; }
+  /* Landscape phone tweaks */
+  @media (max-height: 480px) {
+    .quarter-bar { padding: 6px; }
+    .qbtn { width: 38px; height: 38px; }
+    .footer { padding: 6px; }
+    .footer button { padding: 8px 18px; }
+  }
+</style>
+</head>
+<body>
+  <div class="quarter-bar">
+    <button class="qbtn" id="qMinus" aria-label="Previous quarter">−</button>
+    <div class="qlabel" id="qLabel">QUARTER 1</div>
+    <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
+  </div>
+
+  <div class="teams">
+    <div class="team home">
+      <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="12" />
+      <div class="score" id="scoreA">0</div>
+      <div class="buttons">
+        <button class="sbtn" data-team="A" data-amt="1">+1</button>
+        <button class="sbtn" data-team="A" data-amt="2">+2</button>
+        <button class="sbtn" data-team="A" data-amt="3">+3</button>
+        <button class="sbtn minus" data-team="A" data-amt="-1">−1</button>
+      </div>
+    </div>
+    <div class="team away">
+      <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="12" />
+      <div class="score" id="scoreB">0</div>
+      <div class="buttons">
+        <button class="sbtn" data-team="B" data-amt="1">+1</button>
+        <button class="sbtn" data-team="B" data-amt="2">+2</button>
+        <button class="sbtn" data-team="B" data-amt="3">+3</button>
+        <button class="sbtn minus" data-team="B" data-amt="-1">−1</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button id="reset" class="danger">Reset game</button>
+  </div>
+
+<script>
+  let scoreA = 0, scoreB = 0, quarter = 1;
+  const sa = document.getElementById('scoreA');
+  const sb = document.getElementById('scoreB');
+  const ql = document.getElementById('qLabel');
+  const nameA = document.getElementById('nameA');
+  const nameB = document.getElementById('nameB');
+
+  // --- Persistence: try localStorage, fall back to URL hash ---
+  const STORAGE_KEY = 'scoreboard_state_v1';
+  let useLocalStorage = true;
+  try {
+    localStorage.setItem('__test__', '1');
+    localStorage.removeItem('__test__');
+  } catch (e) {
+    useLocalStorage = false;
+  }
+
+  function save() {
+    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value };
+    if (useLocalStorage) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    } else {
+      try { history.replaceState(null, '', '#' + btoa(JSON.stringify(state))); } catch (e) {}
+    }
+  }
+
+  function load() {
+    let raw = null;
+    if (useLocalStorage) {
+      try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+    }
+    if (!raw && location.hash.length > 1) {
+      try { raw = atob(location.hash.slice(1)); } catch (e) {}
+    }
+    if (!raw) return;
+    try {
+      const s = JSON.parse(raw);
+      scoreA = s.a || 0;
+      scoreB = s.b || 0;
+      quarter = s.q || 1;
+      if (s.na) nameA.value = s.na;
+      if (s.nb) nameB.value = s.nb;
+    } catch (e) {}
+  }
+
+  function render() {
+    sa.textContent = scoreA;
+    sb.textContent = scoreB;
+    ql.textContent = 'QUARTER ' + quarter;
+    save();
+  }
+
+  document.querySelectorAll('button[data-team]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const amt = parseInt(btn.dataset.amt, 10);
+      if (btn.dataset.team === 'A') scoreA = Math.max(0, scoreA + amt);
+      else scoreB = Math.max(0, scoreB + amt);
+      render();
+    });
+  });
+
+  document.getElementById('qPlus').addEventListener('click', () => {
+    if (quarter < 9) quarter++;
+    render();
+  });
+  document.getElementById('qMinus').addEventListener('click', () => {
+    if (quarter > 1) quarter--;
+    render();
+  });
+
+  nameA.addEventListener('input', save);
+  nameB.addEventListener('input', save);
+
+  document.getElementById('reset').addEventListener('click', () => {
+    if (confirm('Reset both scores and quarter?')) {
+      scoreA = 0; scoreB = 0; quarter = 1;
+      render();
+    }
+  });
+
+  // Prevent double-tap zoom on iOS
+  document.addEventListener('touchstart', function(e){ if(e.touches.length>1) e.preventDefault(); }, {passive:false});
+  let lastTap = 0;
+  document.addEventListener('touchend', function(e){
+    const now = Date.now();
+    if (now - lastTap < 300 && e.target.tagName !== 'INPUT') e.preventDefault();
+    lastTap = now;
+  }, {passive:false});
+
+  load();
+  render();
+</script>
+</body>
+</html>
