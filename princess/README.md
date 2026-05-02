@@ -9,6 +9,15 @@ Een offline, single-file web-app met vier mini-games voor een 5-jarige prinsesse
 - 🔍 **Zoeken** — vind verborgen items in de kasteelzaal, tuin, of kleerkamer
 - ⚓ **Zeeslag** — prinsessen-themed battleship tegen de computer
 
+## Live (GitHub Pages)
+
+Apps in this repo, hosted via GitHub Pages:
+
+- 👑 **Prinsessen Spelletjes:** https://michaelmarien.github.io/personal/princess/
+- 🏀 **Scoreboard:** https://michaelmarien.github.io/personal/scoreboard/
+
+> Enable Pages once in `Settings → Pages → Source: deploy from branch → main / (root)`. After that, every push to `main` redeploys automatically (~1 min).
+
 ## Spelen
 
 ### Op je laptop
