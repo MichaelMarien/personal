@@ -91,6 +91,63 @@
   .mem-face { background: white; transform: rotateY(180deg); }
   .mem-face svg { width: 90%; height: 90%; }
 
+  /* === MINI-GAME: AANKLEDEN === */
+  #screen-aankleden .dress-stage {
+    flex: 1; display: grid; grid-template-columns: 1fr 280px;
+    gap: 16px; padding: 8px; min-height: 0;
+  }
+  .doll-area {
+    position: relative; background: white; border-radius: 24px; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .doll { position: relative; width: 280px; height: 480px; }
+  .doll svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .doll .slot-equipped {
+    position: absolute; pointer-events: auto;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .doll .slot-equipped.dress     { left: 25%; top: 50%; width: 50%; height: 38%; }
+  .doll .slot-equipped.crown     { left: 30%; top: 5%;  width: 40%; height: 16%; }
+  .doll .slot-equipped.shoes     { left: 28%; top: 88%; width: 44%; height: 10%; }
+  .doll .slot-equipped.accessory { left: 5%;  top: 38%; width: 22%; height: 22%; }
+  .slot-equipped svg, .slot-equipped .emoji-item { width: 100%; height: 100%; }
+  .emoji-item { font-size: 64px; display: flex; align-items: center; justify-content: center; }
+  .palette {
+    background: white; border-radius: 24px; box-shadow: var(--shadow);
+    padding: 12px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .palette h3 { margin: 4px 0; font-size: 18px; color: var(--ink); }
+  .palette-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .palette-item {
+    aspect-ratio: 1; background: var(--pink); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; touch-action: none;
+    box-shadow: 0 2px 6px rgba(180,100,150,0.15);
+  }
+  .palette-item.dragging { opacity: 0.4; }
+  .palette-item svg { width: 80%; height: 80%; }
+  .palette-item .emoji-item { font-size: 36px; }
+  .ghost {
+    position: fixed; pointer-events: none; z-index: 500;
+    width: 80px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    background: white; border-radius: 16px; box-shadow: var(--shadow);
+  }
+  .ghost svg { width: 80%; height: 80%; }
+  .ghost .emoji-item { font-size: 48px; }
+  .dress-toolbar { display: flex; gap: 12px; justify-content: flex-end; padding-top: 8px; }
+  .dress-toolbar button {
+    background: var(--gold); border: none; border-radius: 16px;
+    padding: 12px 20px; font-size: 20px; font-weight: 800; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .dress-toolbar button:active { transform: scale(0.96); }
+  .princess-row { display: flex; gap: 8px; padding: 4px 0; justify-content: center; }
+  .princess-row button { background: white; border: 3px solid transparent; border-radius: 12px; padding: 4px; cursor: pointer; }
+  .princess-row button.active { border-color: var(--gold); }
+  .princess-row svg { width: 56px; height: 56px; }
+
   /* === ORIENTATION OVERLAY === */
   .orient-overlay {
     display: none; position: fixed; inset: 0; z-index: 1000;
@@ -162,9 +219,14 @@
   <div class="screen" id="screen-aankleden">
     <div class="top-bar">
       <button class="back-btn" data-back>← terug</button>
+      <div class="princess-row" id="dressPrincesses"></div>
       <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
     </div>
-    <div class="placeholder">Aankleden komt eraan...</div>
+    <div class="dress-stage">
+      <div class="doll-area"><div class="doll" id="dressDoll"></div></div>
+      <div class="palette" id="dressPalette"></div>
+    </div>
+    <div class="dress-toolbar"><button id="dressDone">📷 Klaar!</button></div>
   </div>
 
   <!-- ZOEKEN -->
@@ -195,6 +257,7 @@
     if (el) el.classList.add('active');
     App.currentScreen = name;
     if (name === 'memory') Memory.newGame();
+    if (name === 'aankleden') Dress.start();
   }
 
   document.querySelectorAll('.tile').forEach(t => {
@@ -478,6 +541,198 @@
 
     return { newGame };
   })();
+
+  // === MINI-GAME: AANKLEDEN ===
+  const Dress = (() => {
+    const BASES = [
+      { id: 'a', hair: '#F4E4B8', skin: '#FCE4D6' },
+      { id: 'b', hair: '#1A1A1A', skin: '#FCE4D6' },
+      { id: 'c', hair: '#A0522D', skin: '#D2A678' },
+      { id: 'd', hair: '#2B1810', skin: '#8B5A3C' },
+    ];
+
+    function crownSvg(fill, stroke) {
+      return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><path d="M 10 50 L 22 18 L 35 38 L 50 12 L 65 38 L 78 18 L 90 50 Z" fill="${fill}" stroke="${stroke}" stroke-width="2"/><circle cx="50" cy="22" r="4" fill="#E63946"/></svg>`;
+    }
+    function tiaraSvg() {
+      return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><path d="M 10 45 Q 50 5 90 45 Z" fill="#FFD9E5" stroke="#FF9EC0" stroke-width="2"/><circle cx="50" cy="22" r="5" fill="#9FCFFF"/></svg>`;
+    }
+
+    const ITEMS = {
+      dress: [
+        { id: 'd-pink',   color: '#FFB6D5' },
+        { id: 'd-blue',   color: '#A6DDF0' },
+        { id: 'd-yellow', color: '#FFD93D' },
+        { id: 'd-purple', color: '#C18FE6' },
+      ],
+      crown: [
+        { id: 'c-gold',   svg: crownSvg('#FFD700', '#E6B800') },
+        { id: 'c-silver', svg: crownSvg('#D8D8D8', '#A0A0A0') },
+        { id: 'c-flower', emoji: '🌸' },
+        { id: 'c-tiara',  svg: tiaraSvg() },
+      ],
+      shoes: [
+        { id: 's-glass', emoji: '👠' },
+        { id: 's-pink',  emoji: '🥿' },
+        { id: 's-red',   emoji: '👡' },
+        { id: 's-flat',  emoji: '🩰' },
+      ],
+      accessory: [
+        { id: 'a-wand',      emoji: '🪄' },
+        { id: 'a-necklace',  emoji: '📿' },
+        { id: 'a-bouquet',   emoji: '💐' },
+        { id: 'a-butterfly', emoji: '🦋' },
+      ],
+    };
+
+    let currentBase = 'a';
+    let equipped = { dress: null, crown: null, shoes: null, accessory: null };
+
+    function dollSvg(base, dressColor) {
+      const dress = dressColor || '#EEEEEE';
+      const stroke = dressColor ? 'rgba(170,170,170,0.4)' : '#bbbbbb';
+      return `
+        <svg viewBox="0 0 280 480" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="140" cy="120" rx="78" ry="92" fill="${base.hair}"/>
+          <path d="M 70 460 Q 80 280 120 240 L 160 240 Q 200 280 210 460 Z" fill="${dress}" stroke="${stroke}" stroke-width="2"/>
+          <rect x="128" y="200" width="24" height="30" fill="${base.skin}"/>
+          <ellipse cx="80"  cy="290" rx="14" ry="60" fill="${base.skin}"/>
+          <ellipse cx="200" cy="290" rx="14" ry="60" fill="${base.skin}"/>
+          <circle cx="140" cy="140" r="50" fill="${base.skin}"/>
+          <path d="M 92 120 Q 110 78 140 78 Q 170 78 188 120 Q 178 110 140 110 Q 102 110 92 120 Z" fill="${base.hair}"/>
+          <circle cx="124" cy="142" r="3.5" fill="#2a2a2a"/>
+          <circle cx="156" cy="142" r="3.5" fill="#2a2a2a"/>
+          <path d="M 128 162 Q 140 172 152 162" stroke="#a83265" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+
+    function renderPrincessSelector() {
+      const row = document.getElementById('dressPrincesses');
+      row.innerHTML = '';
+      BASES.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = b.id === currentBase ? 'active' : '';
+        btn.innerHTML = dollSvg(b, null);
+        btn.addEventListener('click', () => {
+          currentBase = b.id;
+          renderPrincessSelector();
+          renderDoll();
+        });
+        row.appendChild(btn);
+      });
+    }
+
+    function renderDoll() {
+      const doll = document.getElementById('dressDoll');
+      const base = BASES.find(b => b.id === currentBase);
+      const dressItem = equipped.dress ? ITEMS.dress.find(i => i.id === equipped.dress) : null;
+      doll.innerHTML = dollSvg(base, dressItem ? dressItem.color : null);
+
+      ['crown', 'shoes', 'accessory'].forEach(slot => {
+        if (!equipped[slot]) return;
+        const item = ITEMS[slot].find(i => i.id === equipped[slot]);
+        const div = document.createElement('div');
+        div.className = 'slot-equipped ' + slot;
+        if (item.svg) div.innerHTML = item.svg;
+        else { const e = document.createElement('div'); e.className = 'emoji-item'; e.textContent = item.emoji; div.appendChild(e); }
+        div.addEventListener('click', e => { e.stopPropagation(); equipped[slot] = null; renderDoll(); Audio.wiggle(); });
+        doll.appendChild(div);
+      });
+      if (equipped.dress) {
+        const dressTap = document.createElement('div');
+        dressTap.className = 'slot-equipped dress';
+        dressTap.style.background = 'transparent';
+        dressTap.addEventListener('click', e => { e.stopPropagation(); equipped.dress = null; renderDoll(); Audio.wiggle(); });
+        doll.appendChild(dressTap);
+      }
+    }
+
+    function itemMarkup(item) {
+      if (item.svg) return item.svg;
+      if (item.emoji) return `<div class="emoji-item">${item.emoji}</div>`;
+      return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M 18 56 Q 22 30 30 22 Q 38 30 42 56 Z" fill="${item.color}" stroke="rgba(170,170,170,0.4)" stroke-width="2"/></svg>`;
+    }
+
+    function renderPalette() {
+      const pal = document.getElementById('dressPalette');
+      pal.innerHTML = '';
+      const labels = { dress: 'Jurken', crown: 'Kronen', shoes: 'Schoenen', accessory: 'Accessoires' };
+      Object.keys(ITEMS).forEach(slot => {
+        const h = document.createElement('h3');
+        h.textContent = labels[slot];
+        pal.appendChild(h);
+        const row = document.createElement('div');
+        row.className = 'palette-row';
+        ITEMS[slot].forEach(item => {
+          const b = document.createElement('div');
+          b.className = 'palette-item';
+          b.innerHTML = itemMarkup(item);
+          attachDrag(b, slot, item);
+          row.appendChild(b);
+        });
+        pal.appendChild(row);
+      });
+    }
+
+    function attachDrag(el, slot, item) {
+      let ghost = null;
+      let active = false;
+      function onDown(ev) {
+        ev.preventDefault();
+        active = true;
+        el.classList.add('dragging');
+        const point = ev.touches ? ev.touches[0] : ev;
+        ghost = document.createElement('div');
+        ghost.className = 'ghost';
+        ghost.innerHTML = itemMarkup(item);
+        ghost.style.left = (point.clientX - 40) + 'px';
+        ghost.style.top = (point.clientY - 40) + 'px';
+        document.body.appendChild(ghost);
+      }
+      function onMove(ev) {
+        if (!active) return;
+        ev.preventDefault();
+        const point = ev.touches ? ev.touches[0] : ev;
+        ghost.style.left = (point.clientX - 40) + 'px';
+        ghost.style.top = (point.clientY - 40) + 'px';
+      }
+      function onUp(ev) {
+        if (!active) return;
+        active = false;
+        el.classList.remove('dragging');
+        const point = ev.changedTouches ? ev.changedTouches[0] : ev;
+        const doll = document.getElementById('dressDoll');
+        const r = doll.getBoundingClientRect();
+        const inside = point.clientX >= r.left && point.clientX <= r.right && point.clientY >= r.top && point.clientY <= r.bottom;
+        if (ghost) { ghost.remove(); ghost = null; }
+        if (inside) {
+          equipped[slot] = item.id;
+          renderDoll();
+          sparkle(point.clientX, point.clientY, 6);
+          Audio.chime();
+        }
+      }
+      el.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    }
+
+    function start() {
+      currentBase = 'a';
+      equipped = { dress: null, crown: null, shoes: null, accessory: null };
+      renderPrincessSelector();
+      renderDoll();
+      renderPalette();
+    }
+
+    function done() { showWin('Wat een mooie prinses! 💖', start); }
+
+    return { start, done };
+  })();
+
+  document.getElementById('dressDone').addEventListener('click', () => Dress.done());
 
   // === IOS QUIRK GUARDS (from scoreboard) ===
   document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
