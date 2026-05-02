@@ -148,6 +148,40 @@
   .princess-row button.active { border-color: var(--gold); }
   .princess-row svg { width: 56px; height: 56px; }
 
+  /* === MINI-GAME: ZOEKEN === */
+  #screen-zoeken .zoek-stage { flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .zoek-prompt {
+    background: white; border-radius: 18px; box-shadow: var(--shadow);
+    padding: 14px 22px; display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: clamp(20px, 3.2vh, 30px); font-weight: 800;
+  }
+  .zoek-prompt .target-icon { font-size: clamp(36px, 6vh, 56px); }
+  .zoek-progress { display: flex; gap: 4px; }
+  .zoek-progress .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--pink); border: 2px solid var(--pink-deep); }
+  .zoek-progress .dot.done { background: var(--gold); border-color: var(--gold-deep); }
+  .zoek-scene { flex: 1; position: relative; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow); }
+  .zoek-scene[data-scene="kasteelzaal"] { background: linear-gradient(180deg, #6B4789 0%, #C18FE6 100%); }
+  .zoek-scene[data-scene="tuin"]        { background: linear-gradient(180deg, #87CEEB 0%, #98D982 100%); }
+  .zoek-scene[data-scene="kleerkamer"]  { background: linear-gradient(180deg, #FFD9E5 0%, #FFB6D5 100%); }
+  .zoek-item {
+    position: absolute; font-size: 48px;
+    transform: translate(-50%, -50%);
+    cursor: pointer; transition: transform 200ms ease;
+  }
+  .zoek-item:active { transform: translate(-50%, -50%) scale(0.85); }
+  .zoek-item.hint { animation: hint-pulse 800ms ease-in-out 3; }
+  @keyframes hint-pulse {
+    0%,100% { transform: translate(-50%, -50%) scale(1); filter: drop-shadow(0 0 0 transparent); }
+    50%     { transform: translate(-50%, -50%) scale(1.4); filter: drop-shadow(0 0 16px gold); }
+  }
+  .zoek-toolbar { display: flex; gap: 12px; justify-content: center; }
+  .zoek-toolbar button {
+    background: white; border: none; border-radius: 16px;
+    padding: 10px 20px; font-size: 18px; font-weight: 700; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .zoek-toolbar button:active { transform: scale(0.96); }
+
   /* === ORIENTATION OVERLAY === */
   .orient-overlay {
     display: none; position: fixed; inset: 0; z-index: 1000;
@@ -233,9 +267,21 @@
   <div class="screen" id="screen-zoeken">
     <div class="top-bar">
       <button class="back-btn" data-back>← terug</button>
+      <div class="zoek-progress" id="zoekProgress"></div>
       <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
     </div>
-    <div class="placeholder">Zoeken komt eraan...</div>
+    <div class="zoek-stage">
+      <div class="zoek-prompt" id="zoekPrompt">
+        <span>Vind:</span>
+        <span class="target-icon" id="zoekTargetIcon"></span>
+        <span id="zoekTargetName"></span>
+      </div>
+      <div class="zoek-scene" id="zoekScene"></div>
+      <div class="zoek-toolbar">
+        <button id="zoekHint">💡 Hint</button>
+        <button id="zoekSwap">🔄 Andere kamer</button>
+      </div>
+    </div>
   </div>
 
   <!-- ZEESLAG -->
@@ -258,6 +304,7 @@
     App.currentScreen = name;
     if (name === 'memory') Memory.newGame();
     if (name === 'aankleden') Dress.start();
+    if (name === 'zoeken') Zoek.start();
   }
 
   document.querySelectorAll('.tile').forEach(t => {
@@ -733,6 +780,175 @@
   })();
 
   document.getElementById('dressDone').addEventListener('click', () => Dress.done());
+
+  // === MINI-GAME: ZOEKEN ===
+  const Zoek = (() => {
+    const SCENES = {
+      kasteelzaal: {
+        targets: [
+          { emoji: '👑', name: 'de gouden kroon' },
+          { emoji: '🕯️', name: 'de kaars' },
+          { emoji: '🗝️', name: 'de sleutel' },
+          { emoji: '🐱', name: 'het katje' },
+          { emoji: '📜', name: 'de oude rol' },
+          { emoji: '🍰', name: 'het taartje' },
+          { emoji: '🎁', name: 'het cadeautje' },
+          { emoji: '🪞', name: 'de spiegel' },
+        ],
+        distractors: ['🛋️', '🪑', '🖼️', '⚔️', '🛡️', '🪔', '🏺', '📚', '🎻', '🎺'],
+      },
+      tuin: {
+        targets: [
+          { emoji: '🦋', name: 'de vlinder' },
+          { emoji: '🐝', name: 'het bijtje' },
+          { emoji: '🐸', name: 'het kikkertje' },
+          { emoji: '🌹', name: 'de rode roos' },
+          { emoji: '🍓', name: 'de aardbei' },
+          { emoji: '🐞', name: 'het lieveheersbeestje' },
+          { emoji: '🦔', name: 'de egel' },
+          { emoji: '🌻', name: 'de zonnebloem' },
+        ],
+        distractors: ['🌷', '🌼', '🍄', '🌳', '🌿', '🍃', '🐛', '🪺', '⛲', '🪻'],
+      },
+      kleerkamer: {
+        targets: [
+          { emoji: '👠', name: 'het glazen muiltje' },
+          { emoji: '💍', name: 'de ring' },
+          { emoji: '👒', name: 'de hoed' },
+          { emoji: '🎀', name: 'het strikje' },
+          { emoji: '👜', name: 'het tasje' },
+          { emoji: '💎', name: 'de diamant' },
+          { emoji: '🪄', name: 'het toverstokje' },
+          { emoji: '🧣', name: 'de sjaal' },
+        ],
+        distractors: ['👗', '👚', '🧤', '🥿', '🩰', '📿', '💄', '🪮', '🕶️', '🧴'],
+      },
+    };
+    const SCENE_ORDER = ['kasteelzaal', 'tuin', 'kleerkamer'];
+    const ROUND_LENGTH = 5;
+
+    let currentScene = 'kasteelzaal';
+    let placedItems = [];
+    let currentTarget = null;
+    let foundCount = 0;
+    let hintTimer = null;
+
+    function rand(min, max) { return Math.random() * (max - min) + min; }
+
+    function pickTarget() {
+      const candidates = placedItems.filter(it => it.isTarget);
+      if (!candidates.length) return null;
+      currentTarget = candidates[Math.floor(Math.random() * candidates.length)];
+      document.getElementById('zoekTargetIcon').textContent = currentTarget.emoji;
+      document.getElementById('zoekTargetName').textContent = currentTarget.name;
+      Audio.say('Vind ' + currentTarget.name);
+      armHintTimer();
+    }
+
+    function armHintTimer() {
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => {
+        if (currentTarget && currentTarget.el) {
+          currentTarget.el.classList.add('hint');
+          setTimeout(() => currentTarget && currentTarget.el && currentTarget.el.classList.remove('hint'), 2400);
+        }
+      }, 15000);
+    }
+
+    function buildScene() {
+      const sceneEl = document.getElementById('zoekScene');
+      sceneEl.dataset.scene = currentScene;
+      sceneEl.innerHTML = '';
+      placedItems = [];
+      const scene = SCENES[currentScene];
+
+      const targetPool = [...scene.targets].sort(() => Math.random() - 0.5).slice(0, ROUND_LENGTH);
+      const distractorPool = [...scene.distractors].sort(() => Math.random() - 0.5).slice(0, 10);
+
+      const all = [
+        ...targetPool.map(t => ({ ...t, isTarget: true })),
+        ...distractorPool.map(d => ({ emoji: d, name: '', isTarget: false })),
+      ].sort(() => Math.random() - 0.5);
+
+      const placed = [];
+      const minDist = 12;
+      all.forEach(item => {
+        let x, y, tries = 0;
+        do {
+          x = rand(8, 92);
+          y = rand(10, 90);
+          tries++;
+        } while (tries < 20 && placed.some(p => Math.hypot(p.x - x, p.y - y) < minDist));
+        placed.push({ x, y });
+        const el = document.createElement('div');
+        el.className = 'zoek-item';
+        el.style.left = x + '%';
+        el.style.top = y + '%';
+        el.textContent = item.emoji;
+        el.addEventListener('click', () => onItemClick(item, el));
+        sceneEl.appendChild(el);
+        item.el = el;
+        placedItems.push(item);
+      });
+
+      foundCount = 0;
+      renderProgress();
+      pickTarget();
+    }
+
+    function renderProgress() {
+      const p = document.getElementById('zoekProgress');
+      p.innerHTML = '';
+      for (let i = 0; i < ROUND_LENGTH; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot' + (i < foundCount ? ' done' : '');
+        p.appendChild(d);
+      }
+    }
+
+    function onItemClick(item, el) {
+      if (!currentTarget) return;
+      const r = el.getBoundingClientRect();
+      if (item === currentTarget) {
+        sparkle(r.left + r.width/2, r.top + r.height/2, 8);
+        Audio.cheer();
+        item.isTarget = false;
+        el.style.opacity = '0.25';
+        el.style.pointerEvents = 'none';
+        foundCount++;
+        renderProgress();
+        clearTimeout(hintTimer);
+        if (foundCount >= ROUND_LENGTH) {
+          setTimeout(() => showWin('Klaar! 🎉', () => buildScene()), 700);
+        } else {
+          setTimeout(pickTarget, 500);
+        }
+      } else {
+        el.classList.add('wiggle');
+        setTimeout(() => el.classList.remove('wiggle'), 350);
+        Audio.wiggle();
+        Audio.say('Hmm, probeer nog eens');
+      }
+    }
+
+    function start() { currentScene = SCENE_ORDER[0]; buildScene(); }
+    function swapScene() {
+      const i = SCENE_ORDER.indexOf(currentScene);
+      currentScene = SCENE_ORDER[(i + 1) % SCENE_ORDER.length];
+      buildScene();
+    }
+    function hint() {
+      if (currentTarget && currentTarget.el) {
+        currentTarget.el.classList.add('hint');
+        setTimeout(() => currentTarget && currentTarget.el && currentTarget.el.classList.remove('hint'), 2400);
+      }
+    }
+
+    return { start, swapScene, hint };
+  })();
+
+  document.getElementById('zoekHint').addEventListener('click', () => Zoek.hint());
+  document.getElementById('zoekSwap').addEventListener('click', () => Zoek.swapScene());
 
   // === IOS QUIRK GUARDS (from scoreboard) ===
   document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
