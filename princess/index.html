@@ -182,6 +182,54 @@
   }
   .zoek-toolbar button:active { transform: scale(0.96); }
 
+  /* === MINI-GAME: ZEESLAG === */
+  #screen-zeeslag .zee-stage { flex: 1; display: grid; grid-template-columns: 1fr auto; gap: 16px; min-height: 0; }
+  .zee-boards { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .zee-board-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .zee-board-label { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .zee-board {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 2px; padding: 4px;
+    background: linear-gradient(135deg, #5DA9D9, #3B7BB0);
+    border-radius: 16px; box-shadow: var(--shadow); min-height: 0;
+  }
+  .zee-cell {
+    background: rgba(255,255,255,0.18); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(14px, 3vh, 24px); cursor: pointer; position: relative;
+  }
+  .zee-cell.ship-mine { background: rgba(255, 215, 0, 0.55); }
+  .zee-cell.hit       { background: rgba(255, 100, 130, 0.7); }
+  .zee-cell.miss      { background: rgba(255,255,255,0.5); }
+  .zee-cell.sunk      { background: rgba(180, 30, 70, 0.85); }
+  .zee-board.enemy .zee-cell:not(.hit):not(.miss):active { background: rgba(255,255,255,0.4); }
+
+  .zee-side {
+    width: 220px; display: flex; flex-direction: column; gap: 12px;
+    background: white; border-radius: 24px; box-shadow: var(--shadow); padding: 14px;
+  }
+  .zee-side h3 { margin: 0; font-size: 18px; }
+  .zee-fleet { display: flex; flex-direction: column; gap: 6px; }
+  .zee-piece {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 12px; background: var(--lavender);
+    font-size: 16px; font-weight: 700;
+  }
+  .zee-piece.sunk { opacity: 0.4; text-decoration: line-through; }
+  .zee-piece .icon { font-size: 24px; }
+  .zee-side button {
+    background: var(--gold); border: none; border-radius: 14px;
+    padding: 12px; font-size: 18px; font-weight: 800; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .zee-side button:active { transform: scale(0.96); }
+  .zee-status {
+    font-size: 18px; font-weight: 700; text-align: center; padding: 10px;
+    background: var(--mint); border-radius: 12px;
+  }
+
   /* === ORIENTATION OVERLAY === */
   .orient-overlay {
     display: none; position: fixed; inset: 0; z-index: 1000;
@@ -288,9 +336,29 @@
   <div class="screen" id="screen-zeeslag">
     <div class="top-bar">
       <button class="back-btn" data-back>← terug</button>
+      <div class="zee-status" id="zeeStatus">Plaats je vloot</div>
       <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
     </div>
-    <div class="placeholder">Zeeslag komt eraan...</div>
+    <div class="zee-stage">
+      <div class="zee-boards">
+        <div class="zee-board-wrap">
+          <div class="zee-board-label">Hun koninkrijk</div>
+          <div class="zee-board enemy" id="zeeEnemyBoard"></div>
+        </div>
+        <div class="zee-board-wrap">
+          <div class="zee-board-label">Jouw koninkrijk</div>
+          <div class="zee-board mine" id="zeeMineBoard"></div>
+        </div>
+      </div>
+      <div class="zee-side">
+        <h3>Jouw vloot</h3>
+        <div class="zee-fleet" id="zeeMyFleet"></div>
+        <h3>Hun vloot</h3>
+        <div class="zee-fleet" id="zeeEnemyFleet"></div>
+        <button id="zeeAutoPlace">Plaats voor mij!</button>
+        <button id="zeeRestart">Opnieuw beginnen</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -305,6 +373,7 @@
     if (name === 'memory') Memory.newGame();
     if (name === 'aankleden') Dress.start();
     if (name === 'zoeken') Zoek.start();
+    if (name === 'zeeslag') Zee.start();
   }
 
   document.querySelectorAll('.tile').forEach(t => {
@@ -949,6 +1018,204 @@
 
   document.getElementById('zoekHint').addEventListener('click', () => Zoek.hint());
   document.getElementById('zoekSwap').addEventListener('click', () => Zoek.swapScene());
+
+  // === MINI-GAME: ZEESLAG ===
+  const Zee = (() => {
+    const N = 8;
+    const FLEET = [
+      { id: 'koets',    name: 'Koets',      icon: '🛼', size: 5 },
+      { id: 'zwaan',    name: 'Zwanenboot', icon: '🦢', size: 4 },
+      { id: 'toren',    name: 'Toren',      icon: '🗼', size: 3 },
+      { id: 'eenhoorn', name: 'Eenhoorn',   icon: '🦄', size: 3 },
+      { id: 'juweel',   name: 'Juweel',     icon: '💎', size: 2 },
+    ];
+
+    let phase = 'placing';
+    let myShips = [];
+    let enemyShips = [];
+    let myShots = new Set();
+    let enemyShots = new Set();
+
+    function key(r, c) { return r + ',' + c; }
+    function emptyBoard() { return Array.from({ length: N }, () => new Array(N).fill(0)); }
+
+    function tryPlace(board, size) {
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const horiz = Math.random() < 0.5;
+        const r = Math.floor(Math.random() * (horiz ? N : N - size + 1));
+        const c = Math.floor(Math.random() * (horiz ? N - size + 1 : N));
+        const cells = [];
+        let ok = true;
+        for (let i = 0; i < size; i++) {
+          const rr = horiz ? r : r + i;
+          const cc = horiz ? c + i : c;
+          if (board[rr][cc]) { ok = false; break; }
+          cells.push([rr, cc]);
+        }
+        if (ok) { cells.forEach(([rr, cc]) => { board[rr][cc] = 1; }); return cells; }
+      }
+      return null;
+    }
+
+    function autoPlaceFleet() {
+      const board = emptyBoard();
+      const ships = [];
+      for (const s of FLEET) {
+        const cells = tryPlace(board, s.size);
+        if (!cells) return null;
+        ships.push({ id: s.id, name: s.name, icon: s.icon, size: s.size, cells, hits: new Set() });
+      }
+      return ships;
+    }
+
+    function isSunk(ship) { return ship.hits.size >= ship.size; }
+    function fleetSunk(ships) { return ships.every(isSunk); }
+
+    function renderBoards() {
+      const enemyBoard = document.getElementById('zeeEnemyBoard');
+      const mineBoard = document.getElementById('zeeMineBoard');
+      enemyBoard.innerHTML = '';
+      mineBoard.innerHTML = '';
+
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'zee-cell';
+          cell.dataset.r = r; cell.dataset.c = c;
+          const k = key(r, c);
+          if (myShots.has(k)) {
+            const ship = enemyShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+            if (ship) { cell.classList.add('hit'); cell.textContent = '✨'; if (isSunk(ship)) cell.classList.add('sunk'); }
+            else { cell.classList.add('miss'); cell.textContent = '💧'; }
+          }
+          cell.addEventListener('click', () => onPlayerShot(r, c));
+          enemyBoard.appendChild(cell);
+        }
+      }
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'zee-cell';
+          const k = key(r, c);
+          const ship = myShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+          if (ship) cell.classList.add('ship-mine');
+          if (enemyShots.has(k)) {
+            if (ship) { cell.classList.add('hit'); cell.textContent = '✨'; if (isSunk(ship)) cell.classList.add('sunk'); }
+            else { cell.classList.add('miss'); cell.textContent = '💧'; }
+          } else if (ship) {
+            const piece = FLEET.find(f => f.id === ship.id);
+            cell.textContent = piece.icon;
+          }
+          mineBoard.appendChild(cell);
+        }
+      }
+    }
+
+    function renderFleets() {
+      const my = document.getElementById('zeeMyFleet');
+      const en = document.getElementById('zeeEnemyFleet');
+      my.innerHTML = '';
+      en.innerHTML = '';
+      myShips.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'zee-piece' + (isSunk(s) ? ' sunk' : '');
+        const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = s.icon;
+        const name = document.createElement('span'); name.textContent = s.name;
+        div.appendChild(icon); div.appendChild(name);
+        my.appendChild(div);
+      });
+      enemyShips.forEach(s => {
+        const sunk = isSunk(s);
+        const div = document.createElement('div');
+        div.className = 'zee-piece' + (sunk ? ' sunk' : '');
+        const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = sunk ? s.icon : '❓';
+        const name = document.createElement('span'); name.textContent = sunk ? s.name : '???';
+        div.appendChild(icon); div.appendChild(name);
+        en.appendChild(div);
+      });
+    }
+
+    function setStatus(text) { document.getElementById('zeeStatus').textContent = text; }
+
+    function onPlayerShot(r, c) {
+      if (phase !== 'playing') return;
+      const k = key(r, c);
+      if (myShots.has(k)) return;
+      myShots.add(k);
+      const ship = enemyShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+      const cell = document.querySelector(`#zeeEnemyBoard .zee-cell[data-r="${r}"][data-c="${c}"]`);
+      const rect = cell ? cell.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
+      if (ship) {
+        ship.hits.add(k);
+        Audio.chime();
+        Audio.say(isSunk(ship) ? 'Gezonken!' : 'Raak!');
+        sparkle(rect.left + rect.width/2, rect.top + rect.height/2, 8);
+      } else {
+        Audio.splash();
+        Audio.say('Mis');
+      }
+      renderBoards();
+      renderFleets();
+      if (fleetSunk(enemyShips)) {
+        phase = 'over';
+        setStatus('Je hebt gewonnen!');
+        setTimeout(() => showWin('Je hebt gewonnen! 🎉', () => start()), 600);
+        return;
+      }
+      setStatus('De vijand denkt na...');
+      setTimeout(computerTurn, 900);
+    }
+
+    function computerTurn() {
+      if (phase !== 'playing') return;
+      let r, c, k;
+      do {
+        r = Math.floor(Math.random() * N);
+        c = Math.floor(Math.random() * N);
+        k = key(r, c);
+      } while (enemyShots.has(k));
+      enemyShots.add(k);
+      const ship = myShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+      if (ship) ship.hits.add(k);
+      Audio.splash();
+      renderBoards();
+      renderFleets();
+      if (fleetSunk(myShips)) {
+        phase = 'over';
+        setStatus('Bijna! Nog een keer?');
+        setTimeout(() => showWin('Bijna! Nog een keer?', () => start()), 600);
+        return;
+      }
+      setStatus('Jouw beurt!');
+    }
+
+    function start() {
+      phase = 'placing';
+      myShips = autoPlaceFleet();
+      enemyShips = autoPlaceFleet();
+      myShots = new Set();
+      enemyShots = new Set();
+      setStatus('Klik op "Plaats voor mij!" om te beginnen');
+      renderBoards();
+      renderFleets();
+    }
+
+    function autoPlaceAndStart() {
+      myShips = autoPlaceFleet();
+      enemyShips = autoPlaceFleet();
+      myShots = new Set();
+      enemyShots = new Set();
+      phase = 'playing';
+      setStatus('Jouw beurt! Tik op een vakje boven.');
+      renderBoards();
+      renderFleets();
+    }
+
+    return { start, autoPlaceAndStart };
+  })();
+
+  document.getElementById('zeeAutoPlace').addEventListener('click', () => Zee.autoPlaceAndStart());
+  document.getElementById('zeeRestart').addEventListener('click', () => Zee.start());
 
   // === IOS QUIRK GUARDS (from scoreboard) ===
   document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
