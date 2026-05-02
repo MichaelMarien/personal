@@ -1,0 +1,1674 @@
+# Prinsessen Spelletjes Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a single-file HTML web app with four princess-themed mini-games (memory, dress-up, find-item, battleship) for a 5-year-old Dutch speaker on iPad Safari.
+
+**Architecture:** One `princess/index.html` containing embedded CSS + JS + inline SVG art. No build step, no framework, no external assets, no network. Audio via Web Speech API (`nl-NL`) and Web Audio API. Each mini-game is a separate DOM section in the same page; switching just shows/hides sections.
+
+**Tech Stack:** Vanilla HTML/CSS/JS (ES2020), inline SVG, Web Speech API, Web Audio API, Pointer Events API, Wake Lock API.
+
+**Reference:** `scoreboard/index.html` in the parent repo establishes the single-file pattern, wake-lock usage, and double-tap-zoom prevention. Reuse those snippets.
+
+**Spec:** `princess/docs/superpowers/specs/2026-05-02-princess-game-design.md`
+
+**Testing approach:** No automated tests (per spec). Each task ends with a manual verification step (open the file in a browser, perform interactions, confirm expected behavior) and a commit. Test on Chrome/Safari desktop during development; final QA on iPad in Task 8.
+
+**Note on innerHTML:** The implementation uses innerHTML to inject inline SVG and DOM templates. All values inserted are hardcoded constants (princess data, emoji, color hex strings) — no user input. This is safe for an offline kids' game.
+
+---
+
+## File Structure
+
+```
+princess/
+  index.html                              # entire app (single file)
+  docs/superpowers/specs/...              # already exists
+  docs/superpowers/plans/...              # this file
+```
+
+The index.html is organized internally with comment-banner section dividers in `<style>` (RESET & GLOBALS, HOME MENU, four MINI-GAME blocks, EFFECTS) and in `<script>` (STATE & ROUTING, AUDIO, PRINCESS DATA, the four mini-games, EFFECTS, BOOT).
+
+---
+
+## Task 1: Foundation shell — home menu, routing, wake lock
+
+**Files:**
+- Create: `princess/index.html`
+
+**Goal:** A working app shell with the home menu (4 tiles), screen-routing logic, mute toggle, wake lock, orientation lock, and double-tap-zoom prevention. Tapping a tile shows an empty placeholder section for that game with a "← terug" button.
+
+- [ ] **Step 1: Create index.html with the full shell**
+
+Create `princess/index.html` with the content below. This is the complete Task 1 file — later tasks build on it.
+
+```html
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#FFD9E5" />
+<title>Prinsessen Spelletjes</title>
+<style>
+  /* === RESET & GLOBALS === */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  :root {
+    --pink: #FFD9E5;
+    --pink-deep: #FF9EC0;
+    --lavender: #E8D5FF;
+    --mint: #D5F5E8;
+    --gold: #FFD700;
+    --gold-deep: #E6B800;
+    --ink: #4A2545;
+    --shadow: 0 4px 16px rgba(180, 100, 150, 0.25);
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: linear-gradient(135deg, var(--pink) 0%, var(--lavender) 100%);
+    color: var(--ink);
+    font-family: -apple-system, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden; overscroll-behavior: none;
+  }
+  body { display: flex; flex-direction: column; }
+
+  .screen { display: none; flex: 1; flex-direction: column; padding: 16px; min-height: 0; }
+  .screen.active { display: flex; }
+
+  .top-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .back-btn {
+    background: white; border: none; border-radius: 16px;
+    padding: 12px 20px; font-size: 22px; font-weight: 700; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .back-btn:active { transform: scale(0.95); }
+  .mute-btn {
+    background: white; border: none; border-radius: 50%;
+    width: 56px; height: 56px; font-size: 28px;
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .mute-btn:active { transform: scale(0.92); }
+
+  /* === HOME MENU === */
+  .home-title {
+    text-align: center; margin: 24px 0 8px;
+    font-size: clamp(36px, 7vh, 64px); font-weight: 900;
+    color: var(--ink); text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
+  }
+  .home-subtitle { text-align: center; font-size: 22px; opacity: 0.75; margin-bottom: 24px; }
+  .tile-grid {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px; padding: 8px 16px 16px;
+    align-items: stretch;
+  }
+  .tile {
+    background: white; border: none; border-radius: 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    padding: 24px 12px; box-shadow: var(--shadow); cursor: pointer;
+    min-height: 180px;
+  }
+  .tile:active { transform: scale(0.96); }
+  .tile-icon { font-size: clamp(56px, 12vh, 96px); line-height: 1; }
+  .tile-label { font-size: clamp(20px, 3vh, 28px); font-weight: 800; color: var(--ink); }
+
+  /* === ORIENTATION OVERLAY === */
+  .orient-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: var(--lavender); align-items: center; justify-content: center;
+    flex-direction: column; gap: 24px; text-align: center; padding: 32px;
+    font-size: 28px; font-weight: 700; color: var(--ink);
+  }
+  .orient-overlay .icon { font-size: 96px; animation: rotate 2s ease-in-out infinite; }
+  @keyframes rotate { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) {
+    .orient-overlay { display: flex; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="orient-overlay" aria-hidden="true">
+    <div class="icon">📱</div>
+    <div>Draai je iPad zodat hij liggend staat 💖</div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="top-bar">
+      <div></div>
+      <button class="mute-btn" id="muteBtn" aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="home-title">✨ Prinsessen Spelletjes ✨</div>
+    <div class="home-subtitle">Kies een spelletje!</div>
+    <div class="tile-grid">
+      <button class="tile" data-game="memory"><div class="tile-icon">🎴</div><div class="tile-label">Memory</div></button>
+      <button class="tile" data-game="aankleden"><div class="tile-icon">👗</div><div class="tile-label">Aankleden</div></button>
+      <button class="tile" data-game="zoeken"><div class="tile-icon">🔍</div><div class="tile-label">Zoeken</div></button>
+      <button class="tile" data-game="zeeslag"><div class="tile-icon">⚓</div><div class="tile-label">Zeeslag</div></button>
+    </div>
+  </div>
+
+  <!-- MEMORY -->
+  <div class="screen" id="screen-memory">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Memory komt eraan...</div>
+  </div>
+
+  <!-- AANKLEDEN -->
+  <div class="screen" id="screen-aankleden">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Aankleden komt eraan...</div>
+  </div>
+
+  <!-- ZOEKEN -->
+  <div class="screen" id="screen-zoeken">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Zoeken komt eraan...</div>
+  </div>
+
+  <!-- ZEESLAG -->
+  <div class="screen" id="screen-zeeslag">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Zeeslag komt eraan...</div>
+  </div>
+
+<script>
+  // === STATE & ROUTING ===
+  const App = { muted: false, currentScreen: 'home' };
+
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.add('active');
+    App.currentScreen = name;
+  }
+
+  document.querySelectorAll('.tile').forEach(t => {
+    t.addEventListener('click', () => showScreen(t.dataset.game));
+  });
+  document.querySelectorAll('[data-back]').forEach(b => {
+    b.addEventListener('click', () => showScreen('home'));
+  });
+
+  // === MUTE ===
+  function setMuted(m) {
+    App.muted = m;
+    document.querySelectorAll('.mute-btn, [data-mute]').forEach(b => {
+      b.textContent = m ? '🔇' : '🔊';
+    });
+  }
+  document.querySelectorAll('.mute-btn, [data-mute]').forEach(b => {
+    b.addEventListener('click', () => setMuted(!App.muted));
+  });
+
+  // === IOS QUIRK GUARDS (from scoreboard) ===
+  document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  let lastTap = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTap < 300 && e.target.tagName !== 'INPUT') e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+
+  // === WAKE LOCK ===
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
+  });
+  requestWakeLock();
+</script>
+</body>
+</html>
+```
+
+- [ ] **Step 2: Manual verify**
+
+Open `princess/index.html` in any modern browser.
+
+Expected: Pink/lavender gradient home screen with title "✨ Prinsessen Spelletjes ✨" and four tiles in one row. Tapping a tile switches to a placeholder screen with "← terug" + mute button. Mute toggles between 🔊 and 🔇 and persists across screens. In a portrait window, the "Draai je iPad" overlay appears.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): app shell, home menu, screen routing, mute, wake lock"
+```
+
+---
+
+## Task 2: Audio module — TTS cheers + generated SFX
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** A reusable `Audio` object exposing `cheer()`, `say(text)`, `chime()`, `splash()`, `fanfare()`, `wiggle()`. All respect mute. TTS uses `nl-NL`. SFX are generated tones — no audio files.
+
+- [ ] **Step 1: Add the Audio module**
+
+Insert this block in `<script>` immediately after the `// === MUTE ===` block (before `// === IOS QUIRK GUARDS ===`):
+
+```javascript
+  // === AUDIO ===
+  const CHEERS = ['Goed zo!', 'Super!', 'Wat knap!', 'Geweldig!', 'Heel goed!', 'Mooi gedaan!', 'Top!'];
+  const Audio = (() => {
+    let ctx = null;
+    function ac() {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(freq, durMs, type = 'sine', gain = 0.15, when = 0) {
+      if (App.muted) return;
+      const a = ac();
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      const t0 = a.currentTime + when;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + durMs / 1000);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + durMs / 1000 + 0.02);
+    }
+    function noise(durMs, gain = 0.12) {
+      if (App.muted) return;
+      const a = ac();
+      const buf = a.createBuffer(1, a.sampleRate * (durMs / 1000), a.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = a.createBufferSource();
+      src.buffer = buf;
+      const g = a.createGain();
+      g.gain.value = gain;
+      const filter = a.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1200;
+      src.connect(filter); filter.connect(g); g.connect(a.destination);
+      src.start();
+    }
+    return {
+      chime() {
+        tone(784, 120, 'triangle', 0.18, 0);
+        tone(988, 120, 'triangle', 0.18, 0.08);
+        tone(1175, 200, 'triangle', 0.18, 0.16);
+      },
+      splash() { noise(220, 0.14); },
+      wiggle() {
+        tone(330, 80, 'sine', 0.12, 0);
+        tone(294, 80, 'sine', 0.12, 0.08);
+      },
+      fanfare() {
+        tone(523, 150, 'triangle', 0.20, 0);
+        tone(659, 150, 'triangle', 0.20, 0.12);
+        tone(784, 150, 'triangle', 0.20, 0.24);
+        tone(1047, 350, 'triangle', 0.22, 0.36);
+      },
+      say(text) {
+        if (App.muted) return;
+        if (!('speechSynthesis' in window)) return;
+        try {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'nl-NL';
+          u.rate = 1.0;
+          u.pitch = 1.15;
+          speechSynthesis.cancel();
+          speechSynthesis.speak(u);
+        } catch (e) {}
+      },
+      cheer() {
+        const phrase = CHEERS[Math.floor(Math.random() * CHEERS.length)];
+        this.chime();
+        this.say(phrase);
+        return phrase;
+      },
+    };
+  })();
+
+  // Unlock audio on first user interaction (iOS requirement)
+  let audioUnlocked = false;
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    try {
+      const a = new (window.AudioContext || window.webkitAudioContext)();
+      a.resume();
+    } catch (e) {}
+  }
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click', unlockAudio, { once: true });
+```
+
+- [ ] **Step 2: Add a temporary test button to home for verification**
+
+In the home top-bar, replace the empty `<div></div>` with `<button class="back-btn" id="testAudio">🔔 Test geluid</button>`. Then in `<script>` after the AUDIO block, add:
+
+```javascript
+  document.getElementById('testAudio')?.addEventListener('click', () => Audio.cheer());
+```
+
+- [ ] **Step 3: Manual verify**
+
+Open the file. Click "🔔 Test geluid": hear a 3-note chime AND a Dutch voice saying one of the cheers. Mute → silent. Unmute → cheers vary across clicks. (TTS may be silent on macOS Chrome but works on Safari.)
+
+- [ ] **Step 4: Remove the temporary test button**
+
+Restore the home top-bar's empty `<div></div>` and remove the `getElementById('testAudio')` line.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): audio module — TTS cheers + generated SFX"
+```
+
+---
+
+## Task 3: Princess data + sparkle / confetti / win effects
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** Define 12 princesses as data, add a reusable `princessCard(p)` SVG renderer, and reusable `sparkle(x,y)`, `confetti()`, `showWin(message, onAgain)` helpers used by all mini-games.
+
+- [ ] **Step 1: Add princess data + card renderer**
+
+Insert in `<script>` after the AUDIO block:
+
+```javascript
+  // === PRINCESS DATA ===
+  const PRINCESSES = [
+    { id: 'elsa',        name: 'Elsa',        dress: '#A6DDF0', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '❄️' },
+    { id: 'belle',       name: 'Belle',       dress: '#FFD93D', hair: '#A0522D', skin: '#FCE4D6', emoji: '🌹' },
+    { id: 'ariel',       name: 'Ariël',       dress: '#5FBE7E', hair: '#FF6B47', skin: '#FCE4D6', emoji: '🐚' },
+    { id: 'rapunzel',    name: 'Rapunzel',    dress: '#C18FE6', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '💜' },
+    { id: 'aurora',      name: 'Aurora',      dress: '#FFB6D5', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '🌸' },
+    { id: 'sneeuwwitje', name: 'Sneeuwwitje', dress: '#E63946', hair: '#1A1A1A', skin: '#FCE4D6', emoji: '🍎' },
+    { id: 'cinderella',  name: 'Assepoester', dress: '#BFE3FF', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '✨' },
+    { id: 'jasmine',     name: 'Jasmijn',     dress: '#5DD9C1', hair: '#1A1A1A', skin: '#D2A678', emoji: '🪔' },
+    { id: 'mulan',       name: 'Mulan',       dress: '#D62828', hair: '#1A1A1A', skin: '#E8C39E', emoji: '🐉' },
+    { id: 'tiana',       name: 'Tiana',       dress: '#3FA34D', hair: '#2B1810', skin: '#8B5A3C', emoji: '🐸' },
+    { id: 'moana',       name: 'Moana',       dress: '#0F8FB2', hair: '#1A1A1A', skin: '#C68D6A', emoji: '🌺' },
+    { id: 'pocahontas',  name: 'Pocahontas',  dress: '#C97B4A', hair: '#1A1A1A', skin: '#B07A55', emoji: '🍃' },
+  ];
+
+  function princessCard(p, size = 200) {
+    return `
+      <svg viewBox="0 0 200 200" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g-${p.id}" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="${p.dress}" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="${p.dress}" stop-opacity="1"/>
+          </radialGradient>
+        </defs>
+        <circle cx="100" cy="100" r="92" fill="${p.dress}" opacity="0.15"/>
+        <ellipse cx="100" cy="80" rx="48" ry="55" fill="${p.hair}"/>
+        <path d="M 55 180 Q 60 130 80 115 L 120 115 Q 140 130 145 180 Z" fill="url(#g-${p.id})" stroke="${p.dress}" stroke-width="2"/>
+        <rect x="92" y="100" width="16" height="18" fill="${p.skin}"/>
+        <circle cx="100" cy="85" r="28" fill="${p.skin}"/>
+        <path d="M 72 75 Q 80 55 100 55 Q 120 55 128 75 Q 122 70 100 70 Q 78 70 72 75 Z" fill="${p.hair}"/>
+        <circle cx="90" cy="86" r="2.5" fill="#2a2a2a"/>
+        <circle cx="110" cy="86" r="2.5" fill="#2a2a2a"/>
+        <path d="M 92 96 Q 100 102 108 96" stroke="#a83265" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 80 60 L 86 50 L 92 58 L 100 46 L 108 58 L 114 50 L 120 60 Z" fill="#FFD700" stroke="#E6B800" stroke-width="1.5"/>
+        <circle cx="100" cy="52" r="2.5" fill="#E63946"/>
+      </svg>
+    `;
+  }
+
+  function princessById(id) { return PRINCESSES.find(p => p.id === id); }
+```
+
+- [ ] **Step 2: Add effect CSS + JS helpers**
+
+In `<style>` after the orientation overlay block:
+
+```css
+  /* === EFFECTS === */
+  .sparkle { position: fixed; pointer-events: none; z-index: 999; font-size: 28px; animation: sparkle-rise 700ms ease-out forwards; }
+  @keyframes sparkle-rise {
+    0%   { transform: translate(-50%, -50%) scale(0.4) rotate(0deg); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translate(-50%, calc(-50% - 80px)) scale(1.4) rotate(180deg); opacity: 0; }
+  }
+  .confetti { position: fixed; pointer-events: none; z-index: 998; width: 12px; height: 12px; border-radius: 2px; top: -20px; animation: confetti-fall 1800ms linear forwards; }
+  @keyframes confetti-fall { 0% { transform: translate(0,0) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--dx, 0), 110vh) rotate(720deg); opacity: 0.8; } }
+  .win-overlay { position: fixed; inset: 0; z-index: 800; background: rgba(255, 217, 229, 0.85); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 24px; animation: fade-in 200ms ease-out; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  .win-overlay .msg { font-size: clamp(40px, 9vh, 80px); font-weight: 900; color: var(--ink); text-shadow: 0 4px 12px rgba(255,255,255,0.7); text-align: center; }
+  .win-overlay .actions { display: flex; gap: 16px; }
+  .win-overlay button { background: white; border: none; border-radius: 20px; padding: 16px 32px; font-size: 24px; font-weight: 800; color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
+  .win-overlay button:active { transform: scale(0.95); }
+  @keyframes wiggle { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+  .wiggle { animation: wiggle 300ms ease-in-out; }
+```
+
+In `<script>` after the PRINCESS DATA block:
+
+```javascript
+  // === EFFECTS ===
+  const SPARKLE_GLYPHS = ['✨', '⭐', '💖', '🌟', '💫'];
+  const CONFETTI_COLORS = ['#FFD9E5', '#FF9EC0', '#E8D5FF', '#FFD700', '#5FBE7E', '#A6DDF0'];
+
+  function sparkle(x, y, count = 6) {
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.textContent = SPARKLE_GLYPHS[Math.floor(Math.random() * SPARKLE_GLYPHS.length)];
+      s.style.left = (x + (Math.random() - 0.5) * 40) + 'px';
+      s.style.top = (y + (Math.random() - 0.5) * 40) + 'px';
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 800);
+    }
+  }
+
+  function confetti(count = 60) {
+    const w = window.innerWidth;
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (Math.random() * w) + 'px';
+      c.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+      c.style.animationDelay = (Math.random() * 400) + 'ms';
+      c.style.setProperty('--dx', ((Math.random() - 0.5) * 200) + 'px');
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 2400);
+    }
+  }
+
+  function showWin(message, onAgain) {
+    const overlay = document.createElement('div');
+    overlay.className = 'win-overlay';
+    const msg = document.createElement('div');
+    msg.className = 'msg';
+    msg.textContent = message;
+    overlay.appendChild(msg);
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const btnAgain = document.createElement('button');
+    btnAgain.textContent = 'Nog een keer';
+    btnAgain.addEventListener('click', () => { overlay.remove(); onAgain && onAgain(); });
+    const btnHome = document.createElement('button');
+    btnHome.textContent = '← terug';
+    btnHome.addEventListener('click', () => { overlay.remove(); showScreen('home'); });
+    actions.appendChild(btnAgain); actions.appendChild(btnHome);
+    overlay.appendChild(actions);
+    document.body.appendChild(overlay);
+    Audio.fanfare();
+    Audio.say('Je hebt gewonnen!');
+    confetti();
+  }
+```
+
+- [ ] **Step 2: Manual verify**
+
+No new visible behavior — these are helpers. Open the file, confirm the home screen still loads with no console errors. Open the browser console and run `sparkle(window.innerWidth/2, window.innerHeight/2, 12); confetti(); showWin('Test! 🎉');` — sparkles + confetti + overlay should appear. Close the overlay.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): princess data, SVG card renderer, sparkle/confetti/win effects"
+```
+
+---
+
+## Task 4: Memory mini-game
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** Working 6×4 memory match. Cards shuffled per round, flip-on-tap, match detection, cheer on match, wiggle on mismatch, win screen on completion.
+
+- [ ] **Step 1: Add Memory CSS**
+
+In `<style>` after the HOME MENU block:
+
+```css
+  /* === MINI-GAME: MEMORY === */
+  #screen-memory .memory-grid {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 10px; padding: 8px; min-height: 0;
+  }
+  .mem-card { perspective: 600px; cursor: pointer; min-height: 0; }
+  .mem-card-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 350ms ease; }
+  .mem-card.flipped .mem-card-inner { transform: rotateY(180deg); }
+  .mem-card.matched .mem-card-inner { transform: rotateY(180deg); }
+  .mem-card.matched { animation: matched-pulse 600ms ease; }
+  @keyframes matched-pulse { 50% { transform: scale(1.06); } }
+  .mem-face, .mem-back {
+    position: absolute; inset: 0; border-radius: 18px; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    backface-visibility: hidden; overflow: hidden;
+  }
+  .mem-back { background: linear-gradient(135deg, var(--pink-deep), var(--pink)); font-size: clamp(40px, 8vh, 64px); }
+  .mem-face { background: white; transform: rotateY(180deg); }
+  .mem-face svg { width: 90%; height: 90%; }
+```
+
+- [ ] **Step 2: Replace the Memory placeholder**
+
+Replace the `<div class="placeholder">Memory komt eraan...</div>` line in the Memory screen with:
+
+```html
+    <div class="memory-grid" id="memoryGrid"></div>
+```
+
+- [ ] **Step 3: Add Memory game logic**
+
+In `<script>` after the EFFECTS block:
+
+```javascript
+  // === MINI-GAME: MEMORY ===
+  const Memory = (() => {
+    let deck = [];
+    let firstPick = null;
+    let busy = false;
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function newGame() {
+      const grid = document.getElementById('memoryGrid');
+      grid.innerHTML = '';
+      deck = [];
+      PRINCESSES.forEach(p => {
+        deck.push({ princessId: p.id, paired: false, flipped: false });
+        deck.push({ princessId: p.id, paired: false, flipped: false });
+      });
+      shuffle(deck);
+      deck.forEach((card, idx) => {
+        const el = document.createElement('div');
+        el.className = 'mem-card';
+        const inner = document.createElement('div');
+        inner.className = 'mem-card-inner';
+        const back = document.createElement('div');
+        back.className = 'mem-back';
+        back.textContent = '👑';
+        const face = document.createElement('div');
+        face.className = 'mem-face';
+        face.innerHTML = princessCard(princessById(card.princessId));
+        inner.appendChild(back); inner.appendChild(face);
+        el.appendChild(inner);
+        el.addEventListener('click', () => onCardClick(idx));
+        card.el = el;
+        grid.appendChild(el);
+      });
+      firstPick = null;
+      busy = false;
+    }
+
+    function onCardClick(idx) {
+      if (busy) return;
+      const card = deck[idx];
+      if (card.flipped || card.paired) return;
+      card.flipped = true;
+      card.el.classList.add('flipped');
+      Audio.chime();
+
+      if (firstPick === null) { firstPick = idx; return; }
+      const a = deck[firstPick];
+      const b = card;
+      firstPick = null;
+
+      if (a.princessId === b.princessId) {
+        a.paired = true; b.paired = true;
+        a.el.classList.add('matched'); b.el.classList.add('matched');
+        const rect = b.el.getBoundingClientRect();
+        sparkle(rect.left + rect.width/2, rect.top + rect.height/2, 8);
+        Audio.cheer();
+        if (deck.every(c => c.paired)) {
+          setTimeout(() => showWin('Gewonnen! 🎉', newGame), 700);
+        }
+      } else {
+        busy = true;
+        setTimeout(() => {
+          a.flipped = false; b.flipped = false;
+          a.el.classList.remove('flipped'); b.el.classList.remove('flipped');
+          busy = false;
+        }, 1200);
+      }
+    }
+
+    return { newGame };
+  })();
+```
+
+- [ ] **Step 4: Wire game-start when entering the Memory screen**
+
+Replace the `showScreen` function with:
+
+```javascript
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.add('active');
+    App.currentScreen = name;
+    if (name === 'memory') Memory.newGame();
+  }
+```
+
+- [ ] **Step 5: Manual verify**
+
+Open the file. Click Memory. Expected: 6×4 grid of pink cards with 👑. Tap → flip with chime. Two non-matching cards flip back after 1.2s. Two matching → stay flipped, sparkle, cheer. All pairs → "Gewonnen! 🎉" with confetti and TTS. "Nog een keer" reshuffles. "← terug" returns home; re-entering starts fresh.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): memory mini-game (6×4 grid, 12 pairs)"
+```
+
+---
+
+## Task 5: Aankleden mini-game (drag-and-drop dress-up)
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** A drag-and-drop dress-up screen. Princess silhouette with 4 slots (dress/crown/shoes/accessory), 4 options per slot. Drag palette → princess; replaces previous item. Tap equipped item to remove. "📷 Klaar!" shows celebration.
+
+- [ ] **Step 1: Add Aankleden CSS**
+
+In `<style>` after the Memory block:
+
+```css
+  /* === MINI-GAME: AANKLEDEN === */
+  #screen-aankleden .dress-stage {
+    flex: 1; display: grid; grid-template-columns: 1fr 280px;
+    gap: 16px; padding: 8px; min-height: 0;
+  }
+  .doll-area {
+    position: relative; background: white; border-radius: 24px; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .doll { position: relative; width: 280px; height: 480px; }
+  .doll svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .doll .slot-equipped {
+    position: absolute; pointer-events: auto;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .doll .slot-equipped.dress     { left: 25%; top: 50%; width: 50%; height: 38%; }
+  .doll .slot-equipped.crown     { left: 30%; top: 5%;  width: 40%; height: 16%; }
+  .doll .slot-equipped.shoes     { left: 28%; top: 88%; width: 44%; height: 10%; }
+  .doll .slot-equipped.accessory { left: 5%;  top: 38%; width: 22%; height: 22%; }
+  .slot-equipped svg, .slot-equipped .emoji-item { width: 100%; height: 100%; }
+  .emoji-item { font-size: 64px; display: flex; align-items: center; justify-content: center; }
+  .palette {
+    background: white; border-radius: 24px; box-shadow: var(--shadow);
+    padding: 12px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .palette h3 { margin: 4px 0; font-size: 18px; color: var(--ink); }
+  .palette-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .palette-item {
+    aspect-ratio: 1; background: var(--pink); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; touch-action: none;
+    box-shadow: 0 2px 6px rgba(180,100,150,0.15);
+  }
+  .palette-item.dragging { opacity: 0.4; }
+  .palette-item svg { width: 80%; height: 80%; }
+  .palette-item .emoji-item { font-size: 36px; }
+  .ghost {
+    position: fixed; pointer-events: none; z-index: 500;
+    width: 80px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    background: white; border-radius: 16px; box-shadow: var(--shadow);
+  }
+  .ghost svg { width: 80%; height: 80%; }
+  .ghost .emoji-item { font-size: 48px; }
+  .dress-toolbar { display: flex; gap: 12px; justify-content: flex-end; padding-top: 8px; }
+  .dress-toolbar button {
+    background: var(--gold); border: none; border-radius: 16px;
+    padding: 12px 20px; font-size: 20px; font-weight: 800; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .dress-toolbar button:active { transform: scale(0.96); }
+  .princess-row { display: flex; gap: 8px; padding: 4px 0; justify-content: center; }
+  .princess-row button { background: white; border: 3px solid transparent; border-radius: 12px; padding: 4px; cursor: pointer; }
+  .princess-row button.active { border-color: var(--gold); }
+  .princess-row svg { width: 56px; height: 56px; }
+```
+
+- [ ] **Step 2: Replace the Aankleden screen markup**
+
+Replace the existing Aankleden screen `<div class="screen" id="screen-aankleden">...</div>` with:
+
+```html
+  <div class="screen" id="screen-aankleden">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <div class="princess-row" id="dressPrincesses"></div>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="dress-stage">
+      <div class="doll-area"><div class="doll" id="dressDoll"></div></div>
+      <div class="palette" id="dressPalette"></div>
+    </div>
+    <div class="dress-toolbar"><button id="dressDone">📷 Klaar!</button></div>
+  </div>
+```
+
+- [ ] **Step 3: Add Aankleden game logic**
+
+In `<script>` after the Memory block:
+
+```javascript
+  // === MINI-GAME: AANKLEDEN ===
+  const Dress = (() => {
+    const BASES = [
+      { id: 'a', hair: '#F4E4B8', skin: '#FCE4D6' },
+      { id: 'b', hair: '#1A1A1A', skin: '#FCE4D6' },
+      { id: 'c', hair: '#A0522D', skin: '#D2A678' },
+      { id: 'd', hair: '#2B1810', skin: '#8B5A3C' },
+    ];
+
+    function crownSvg(fill, stroke) {
+      return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><path d="M 10 50 L 22 18 L 35 38 L 50 12 L 65 38 L 78 18 L 90 50 Z" fill="${fill}" stroke="${stroke}" stroke-width="2"/><circle cx="50" cy="22" r="4" fill="#E63946"/></svg>`;
+    }
+    function tiaraSvg() {
+      return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><path d="M 10 45 Q 50 5 90 45 Z" fill="#FFD9E5" stroke="#FF9EC0" stroke-width="2"/><circle cx="50" cy="22" r="5" fill="#9FCFFF"/></svg>`;
+    }
+
+    const ITEMS = {
+      dress: [
+        { id: 'd-pink',   color: '#FFB6D5' },
+        { id: 'd-blue',   color: '#A6DDF0' },
+        { id: 'd-yellow', color: '#FFD93D' },
+        { id: 'd-purple', color: '#C18FE6' },
+      ],
+      crown: [
+        { id: 'c-gold',   svg: crownSvg('#FFD700', '#E6B800') },
+        { id: 'c-silver', svg: crownSvg('#D8D8D8', '#A0A0A0') },
+        { id: 'c-flower', emoji: '🌸' },
+        { id: 'c-tiara',  svg: tiaraSvg() },
+      ],
+      shoes: [
+        { id: 's-glass', emoji: '👠' },
+        { id: 's-pink',  emoji: '🥿' },
+        { id: 's-red',   emoji: '👡' },
+        { id: 's-flat',  emoji: '🩰' },
+      ],
+      accessory: [
+        { id: 'a-wand',      emoji: '🪄' },
+        { id: 'a-necklace',  emoji: '📿' },
+        { id: 'a-bouquet',   emoji: '💐' },
+        { id: 'a-butterfly', emoji: '🦋' },
+      ],
+    };
+
+    let currentBase = 'a';
+    let equipped = { dress: null, crown: null, shoes: null, accessory: null };
+
+    function dollSvg(base, dressColor) {
+      const dress = dressColor || '#EEEEEE';
+      const stroke = dressColor ? 'rgba(170,170,170,0.4)' : '#bbbbbb';
+      return `
+        <svg viewBox="0 0 280 480" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="140" cy="120" rx="78" ry="92" fill="${base.hair}"/>
+          <path d="M 70 460 Q 80 280 120 240 L 160 240 Q 200 280 210 460 Z" fill="${dress}" stroke="${stroke}" stroke-width="2"/>
+          <rect x="128" y="200" width="24" height="30" fill="${base.skin}"/>
+          <ellipse cx="80"  cy="290" rx="14" ry="60" fill="${base.skin}"/>
+          <ellipse cx="200" cy="290" rx="14" ry="60" fill="${base.skin}"/>
+          <circle cx="140" cy="140" r="50" fill="${base.skin}"/>
+          <path d="M 92 120 Q 110 78 140 78 Q 170 78 188 120 Q 178 110 140 110 Q 102 110 92 120 Z" fill="${base.hair}"/>
+          <circle cx="124" cy="142" r="3.5" fill="#2a2a2a"/>
+          <circle cx="156" cy="142" r="3.5" fill="#2a2a2a"/>
+          <path d="M 128 162 Q 140 172 152 162" stroke="#a83265" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+
+    function renderPrincessSelector() {
+      const row = document.getElementById('dressPrincesses');
+      row.innerHTML = '';
+      BASES.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = b.id === currentBase ? 'active' : '';
+        btn.innerHTML = dollSvg(b, null);
+        btn.addEventListener('click', () => {
+          currentBase = b.id;
+          renderPrincessSelector();
+          renderDoll();
+        });
+        row.appendChild(btn);
+      });
+    }
+
+    function renderDoll() {
+      const doll = document.getElementById('dressDoll');
+      const base = BASES.find(b => b.id === currentBase);
+      const dressItem = equipped.dress ? ITEMS.dress.find(i => i.id === equipped.dress) : null;
+      doll.innerHTML = dollSvg(base, dressItem ? dressItem.color : null);
+
+      ['crown', 'shoes', 'accessory'].forEach(slot => {
+        if (!equipped[slot]) return;
+        const item = ITEMS[slot].find(i => i.id === equipped[slot]);
+        const div = document.createElement('div');
+        div.className = 'slot-equipped ' + slot;
+        if (item.svg) div.innerHTML = item.svg;
+        else { const e = document.createElement('div'); e.className = 'emoji-item'; e.textContent = item.emoji; div.appendChild(e); }
+        div.addEventListener('click', e => { e.stopPropagation(); equipped[slot] = null; renderDoll(); Audio.wiggle(); });
+        doll.appendChild(div);
+      });
+      if (equipped.dress) {
+        const dressTap = document.createElement('div');
+        dressTap.className = 'slot-equipped dress';
+        dressTap.style.background = 'transparent';
+        dressTap.addEventListener('click', e => { e.stopPropagation(); equipped.dress = null; renderDoll(); Audio.wiggle(); });
+        doll.appendChild(dressTap);
+      }
+    }
+
+    function itemMarkup(item) {
+      if (item.svg) return item.svg;
+      if (item.emoji) return `<div class="emoji-item">${item.emoji}</div>`;
+      return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><path d="M 18 56 Q 22 30 30 22 Q 38 30 42 56 Z" fill="${item.color}" stroke="rgba(170,170,170,0.4)" stroke-width="2"/></svg>`;
+    }
+
+    function renderPalette() {
+      const pal = document.getElementById('dressPalette');
+      pal.innerHTML = '';
+      const labels = { dress: 'Jurken', crown: 'Kronen', shoes: 'Schoenen', accessory: 'Accessoires' };
+      Object.keys(ITEMS).forEach(slot => {
+        const h = document.createElement('h3');
+        h.textContent = labels[slot];
+        pal.appendChild(h);
+        const row = document.createElement('div');
+        row.className = 'palette-row';
+        ITEMS[slot].forEach(item => {
+          const b = document.createElement('div');
+          b.className = 'palette-item';
+          b.innerHTML = itemMarkup(item);
+          attachDrag(b, slot, item);
+          row.appendChild(b);
+        });
+        pal.appendChild(row);
+      });
+    }
+
+    function attachDrag(el, slot, item) {
+      let ghost = null;
+      let active = false;
+      function onDown(ev) {
+        ev.preventDefault();
+        active = true;
+        el.classList.add('dragging');
+        const point = ev.touches ? ev.touches[0] : ev;
+        ghost = document.createElement('div');
+        ghost.className = 'ghost';
+        ghost.innerHTML = itemMarkup(item);
+        ghost.style.left = (point.clientX - 40) + 'px';
+        ghost.style.top = (point.clientY - 40) + 'px';
+        document.body.appendChild(ghost);
+      }
+      function onMove(ev) {
+        if (!active) return;
+        ev.preventDefault();
+        const point = ev.touches ? ev.touches[0] : ev;
+        ghost.style.left = (point.clientX - 40) + 'px';
+        ghost.style.top = (point.clientY - 40) + 'px';
+      }
+      function onUp(ev) {
+        if (!active) return;
+        active = false;
+        el.classList.remove('dragging');
+        const point = ev.changedTouches ? ev.changedTouches[0] : ev;
+        const doll = document.getElementById('dressDoll');
+        const r = doll.getBoundingClientRect();
+        const inside = point.clientX >= r.left && point.clientX <= r.right && point.clientY >= r.top && point.clientY <= r.bottom;
+        if (ghost) { ghost.remove(); ghost = null; }
+        if (inside) {
+          equipped[slot] = item.id;
+          renderDoll();
+          sparkle(point.clientX, point.clientY, 6);
+          Audio.chime();
+        }
+      }
+      el.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    }
+
+    function start() {
+      currentBase = 'a';
+      equipped = { dress: null, crown: null, shoes: null, accessory: null };
+      renderPrincessSelector();
+      renderDoll();
+      renderPalette();
+    }
+
+    function done() { showWin('Wat een mooie prinses! 💖', start); }
+
+    return { start, done };
+  })();
+
+  document.getElementById('dressDone').addEventListener('click', () => Dress.done());
+```
+
+- [ ] **Step 4: Update `showScreen` to start Dress when entering**
+
+Replace `showScreen` with:
+
+```javascript
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.add('active');
+    App.currentScreen = name;
+    if (name === 'memory') Memory.newGame();
+    if (name === 'aankleden') Dress.start();
+  }
+```
+
+- [ ] **Step 5: Manual verify**
+
+Open file. Click Aankleden. Expected: princess silhouette in center; 4 thumbnails at top (one gold-bordered); palette right with Jurken / Kronen / Schoenen / Accessoires (4 items each). Drag a dress onto princess → she wears that color, sparkle, chime. Drag crown / shoes / accessory similarly. Tap equipped item → removes. Click another thumbnail → hair/skin changes; outfit persists. Click "📷 Klaar!" → "Wat een mooie prinses! 💖" overlay with confetti.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): aankleden mini-game (drag-and-drop dress-up)"
+```
+
+---
+
+## Task 6: Zoeken mini-game (find the hidden item)
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** Three scenes (kasteelzaal, tuin, kleerkamer), each ~15 scattered emoji items. Target prompt at top. Tap correct → cheer + new target. Tap wrong → wiggle. Find 5 in a round → win. Hint after 15s of inactivity.
+
+- [ ] **Step 1: Add Zoeken CSS**
+
+In `<style>` after the Aankleden block:
+
+```css
+  /* === MINI-GAME: ZOEKEN === */
+  #screen-zoeken .zoek-stage { flex: 1; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .zoek-prompt {
+    background: white; border-radius: 18px; box-shadow: var(--shadow);
+    padding: 14px 22px; display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: clamp(20px, 3.2vh, 30px); font-weight: 800;
+  }
+  .zoek-prompt .target-icon { font-size: clamp(36px, 6vh, 56px); }
+  .zoek-progress { display: flex; gap: 4px; }
+  .zoek-progress .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--pink); border: 2px solid var(--pink-deep); }
+  .zoek-progress .dot.done { background: var(--gold); border-color: var(--gold-deep); }
+  .zoek-scene { flex: 1; position: relative; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow); }
+  .zoek-scene[data-scene="kasteelzaal"] { background: linear-gradient(180deg, #6B4789 0%, #C18FE6 100%); }
+  .zoek-scene[data-scene="tuin"]        { background: linear-gradient(180deg, #87CEEB 0%, #98D982 100%); }
+  .zoek-scene[data-scene="kleerkamer"]  { background: linear-gradient(180deg, #FFD9E5 0%, #FFB6D5 100%); }
+  .zoek-item {
+    position: absolute; font-size: 48px;
+    transform: translate(-50%, -50%);
+    cursor: pointer; transition: transform 200ms ease;
+  }
+  .zoek-item:active { transform: translate(-50%, -50%) scale(0.85); }
+  .zoek-item.hint { animation: hint-pulse 800ms ease-in-out 3; }
+  @keyframes hint-pulse {
+    0%,100% { transform: translate(-50%, -50%) scale(1); filter: drop-shadow(0 0 0 transparent); }
+    50%     { transform: translate(-50%, -50%) scale(1.4); filter: drop-shadow(0 0 16px gold); }
+  }
+  .zoek-toolbar { display: flex; gap: 12px; justify-content: center; }
+  .zoek-toolbar button {
+    background: white; border: none; border-radius: 16px;
+    padding: 10px 20px; font-size: 18px; font-weight: 700; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .zoek-toolbar button:active { transform: scale(0.96); }
+```
+
+- [ ] **Step 2: Replace the Zoeken screen markup**
+
+Replace the existing Zoeken `<div class="screen" id="screen-zoeken">...</div>` with:
+
+```html
+  <div class="screen" id="screen-zoeken">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <div class="zoek-progress" id="zoekProgress"></div>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="zoek-stage">
+      <div class="zoek-prompt" id="zoekPrompt">
+        <span>Vind:</span>
+        <span class="target-icon" id="zoekTargetIcon"></span>
+        <span id="zoekTargetName"></span>
+      </div>
+      <div class="zoek-scene" id="zoekScene"></div>
+      <div class="zoek-toolbar">
+        <button id="zoekHint">💡 Hint</button>
+        <button id="zoekSwap">🔄 Andere kamer</button>
+      </div>
+    </div>
+  </div>
+```
+
+- [ ] **Step 3: Add Zoeken game logic**
+
+In `<script>` after the Aankleden block:
+
+```javascript
+  // === MINI-GAME: ZOEKEN ===
+  const Zoek = (() => {
+    const SCENES = {
+      kasteelzaal: {
+        targets: [
+          { emoji: '👑', name: 'de gouden kroon' },
+          { emoji: '🕯️', name: 'de kaars' },
+          { emoji: '🗝️', name: 'de sleutel' },
+          { emoji: '🐱', name: 'het katje' },
+          { emoji: '📜', name: 'de oude rol' },
+          { emoji: '🍰', name: 'het taartje' },
+          { emoji: '🎁', name: 'het cadeautje' },
+          { emoji: '🪞', name: 'de spiegel' },
+        ],
+        distractors: ['🛋️', '🪑', '🖼️', '⚔️', '🛡️', '🪔', '🏺', '📚', '🎻', '🎺'],
+      },
+      tuin: {
+        targets: [
+          { emoji: '🦋', name: 'de vlinder' },
+          { emoji: '🐝', name: 'het bijtje' },
+          { emoji: '🐸', name: 'het kikkertje' },
+          { emoji: '🌹', name: 'de rode roos' },
+          { emoji: '🍓', name: 'de aardbei' },
+          { emoji: '🐞', name: 'het lieveheersbeestje' },
+          { emoji: '🦔', name: 'de egel' },
+          { emoji: '🌻', name: 'de zonnebloem' },
+        ],
+        distractors: ['🌷', '🌼', '🍄', '🌳', '🌿', '🍃', '🐛', '🪺', '⛲', '🪻'],
+      },
+      kleerkamer: {
+        targets: [
+          { emoji: '👠', name: 'het glazen muiltje' },
+          { emoji: '💍', name: 'de ring' },
+          { emoji: '👒', name: 'de hoed' },
+          { emoji: '🎀', name: 'het strikje' },
+          { emoji: '👜', name: 'het tasje' },
+          { emoji: '💎', name: 'de diamant' },
+          { emoji: '🪄', name: 'het toverstokje' },
+          { emoji: '🧣', name: 'de sjaal' },
+        ],
+        distractors: ['👗', '👚', '🧤', '🥿', '🩰', '📿', '💄', '🪮', '🕶️', '🧴'],
+      },
+    };
+    const SCENE_ORDER = ['kasteelzaal', 'tuin', 'kleerkamer'];
+    const ROUND_LENGTH = 5;
+
+    let currentScene = 'kasteelzaal';
+    let placedItems = [];
+    let currentTarget = null;
+    let foundCount = 0;
+    let hintTimer = null;
+
+    function rand(min, max) { return Math.random() * (max - min) + min; }
+
+    function pickTarget() {
+      const candidates = placedItems.filter(it => it.isTarget);
+      if (!candidates.length) return null;
+      currentTarget = candidates[Math.floor(Math.random() * candidates.length)];
+      document.getElementById('zoekTargetIcon').textContent = currentTarget.emoji;
+      document.getElementById('zoekTargetName').textContent = currentTarget.name;
+      Audio.say('Vind ' + currentTarget.name);
+      armHintTimer();
+    }
+
+    function armHintTimer() {
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => {
+        if (currentTarget && currentTarget.el) {
+          currentTarget.el.classList.add('hint');
+          setTimeout(() => currentTarget && currentTarget.el && currentTarget.el.classList.remove('hint'), 2400);
+        }
+      }, 15000);
+    }
+
+    function buildScene() {
+      const sceneEl = document.getElementById('zoekScene');
+      sceneEl.dataset.scene = currentScene;
+      sceneEl.innerHTML = '';
+      placedItems = [];
+      const scene = SCENES[currentScene];
+
+      const targetPool = [...scene.targets].sort(() => Math.random() - 0.5).slice(0, ROUND_LENGTH);
+      const distractorPool = [...scene.distractors].sort(() => Math.random() - 0.5).slice(0, 10);
+
+      const all = [
+        ...targetPool.map(t => ({ ...t, isTarget: true })),
+        ...distractorPool.map(d => ({ emoji: d, name: '', isTarget: false })),
+      ].sort(() => Math.random() - 0.5);
+
+      const placed = [];
+      const minDist = 12;
+      all.forEach(item => {
+        let x, y, tries = 0;
+        do {
+          x = rand(8, 92);
+          y = rand(10, 90);
+          tries++;
+        } while (tries < 20 && placed.some(p => Math.hypot(p.x - x, p.y - y) < minDist));
+        placed.push({ x, y });
+        const el = document.createElement('div');
+        el.className = 'zoek-item';
+        el.style.left = x + '%';
+        el.style.top = y + '%';
+        el.textContent = item.emoji;
+        el.addEventListener('click', () => onItemClick(item, el));
+        sceneEl.appendChild(el);
+        item.el = el;
+        placedItems.push(item);
+      });
+
+      foundCount = 0;
+      renderProgress();
+      pickTarget();
+    }
+
+    function renderProgress() {
+      const p = document.getElementById('zoekProgress');
+      p.innerHTML = '';
+      for (let i = 0; i < ROUND_LENGTH; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot' + (i < foundCount ? ' done' : '');
+        p.appendChild(d);
+      }
+    }
+
+    function onItemClick(item, el) {
+      if (!currentTarget) return;
+      const r = el.getBoundingClientRect();
+      if (item === currentTarget) {
+        sparkle(r.left + r.width/2, r.top + r.height/2, 8);
+        Audio.cheer();
+        item.isTarget = false;
+        el.style.opacity = '0.25';
+        el.style.pointerEvents = 'none';
+        foundCount++;
+        renderProgress();
+        clearTimeout(hintTimer);
+        if (foundCount >= ROUND_LENGTH) {
+          setTimeout(() => showWin('Klaar! 🎉', () => buildScene()), 700);
+        } else {
+          setTimeout(pickTarget, 500);
+        }
+      } else {
+        el.classList.add('wiggle');
+        setTimeout(() => el.classList.remove('wiggle'), 350);
+        Audio.wiggle();
+        Audio.say('Hmm, probeer nog eens');
+      }
+    }
+
+    function start() { currentScene = SCENE_ORDER[0]; buildScene(); }
+    function swapScene() {
+      const i = SCENE_ORDER.indexOf(currentScene);
+      currentScene = SCENE_ORDER[(i + 1) % SCENE_ORDER.length];
+      buildScene();
+    }
+    function hint() {
+      if (currentTarget && currentTarget.el) {
+        currentTarget.el.classList.add('hint');
+        setTimeout(() => currentTarget && currentTarget.el && currentTarget.el.classList.remove('hint'), 2400);
+      }
+    }
+
+    return { start, swapScene, hint };
+  })();
+
+  document.getElementById('zoekHint').addEventListener('click', () => Zoek.hint());
+  document.getElementById('zoekSwap').addEventListener('click', () => Zoek.swapScene());
+```
+
+- [ ] **Step 4: Update `showScreen` for Zoeken**
+
+Replace `showScreen` with:
+
+```javascript
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.add('active');
+    App.currentScreen = name;
+    if (name === 'memory') Memory.newGame();
+    if (name === 'aankleden') Dress.start();
+    if (name === 'zoeken') Zoek.start();
+  }
+```
+
+- [ ] **Step 5: Manual verify**
+
+Open file. Click Zoeken. Expected: kasteelzaal scene (purple gradient), ~15 emoji items scattered. Prompt "Vind: 👑 de gouden kroon" + TTS reads it. 5 pink progress dots top. Wrong tap → wiggle + soft tone + TTS "Hmm probeer nog eens". Correct tap → sparkles, cheer, item fades to 25% opacity, dot turns gold, new target. After 15s idle → correct item pulses gold. 5 finds → "Klaar! 🎉" + confetti. "🔄 Andere kamer" cycles to tuin → kleerkamer.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): zoeken mini-game (3 scenes, find-the-item)"
+```
+
+---
+
+## Task 7: Zeeslag mini-game (princess battleship)
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** Classic 8×8 battleship vs computer, princess theme. Auto-place button (recommended path); random-AI opponent. Hit/miss feedback with princess theming. Win/lose screens that never feel punishing.
+
+- [ ] **Step 1: Add Zeeslag CSS**
+
+In `<style>` after the Zoeken block:
+
+```css
+  /* === MINI-GAME: ZEESLAG === */
+  #screen-zeeslag .zee-stage { flex: 1; display: grid; grid-template-columns: 1fr auto; gap: 16px; min-height: 0; }
+  .zee-boards { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .zee-board-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+  .zee-board-label { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .zee-board {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 2px; padding: 4px;
+    background: linear-gradient(135deg, #5DA9D9, #3B7BB0);
+    border-radius: 16px; box-shadow: var(--shadow); min-height: 0;
+  }
+  .zee-cell {
+    background: rgba(255,255,255,0.18); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(14px, 3vh, 24px); cursor: pointer; position: relative;
+  }
+  .zee-cell.ship-mine { background: rgba(255, 215, 0, 0.55); }
+  .zee-cell.hit       { background: rgba(255, 100, 130, 0.7); }
+  .zee-cell.miss      { background: rgba(255,255,255,0.5); }
+  .zee-cell.sunk      { background: rgba(180, 30, 70, 0.85); }
+  .zee-board.enemy .zee-cell:not(.hit):not(.miss):active { background: rgba(255,255,255,0.4); }
+
+  .zee-side {
+    width: 220px; display: flex; flex-direction: column; gap: 12px;
+    background: white; border-radius: 24px; box-shadow: var(--shadow); padding: 14px;
+  }
+  .zee-side h3 { margin: 0; font-size: 18px; }
+  .zee-fleet { display: flex; flex-direction: column; gap: 6px; }
+  .zee-piece {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px; border-radius: 12px; background: var(--lavender);
+    font-size: 16px; font-weight: 700;
+  }
+  .zee-piece.sunk { opacity: 0.4; text-decoration: line-through; }
+  .zee-piece .icon { font-size: 24px; }
+  .zee-side button {
+    background: var(--gold); border: none; border-radius: 14px;
+    padding: 12px; font-size: 18px; font-weight: 800; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .zee-side button:active { transform: scale(0.96); }
+  .zee-status {
+    font-size: 18px; font-weight: 700; text-align: center; padding: 10px;
+    background: var(--mint); border-radius: 12px;
+  }
+```
+
+- [ ] **Step 2: Replace the Zeeslag screen markup**
+
+Replace the existing Zeeslag `<div class="screen" id="screen-zeeslag">...</div>` with:
+
+```html
+  <div class="screen" id="screen-zeeslag">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <div class="zee-status" id="zeeStatus">Plaats je vloot</div>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="zee-stage">
+      <div class="zee-boards">
+        <div class="zee-board-wrap">
+          <div class="zee-board-label">Hun koninkrijk</div>
+          <div class="zee-board enemy" id="zeeEnemyBoard"></div>
+        </div>
+        <div class="zee-board-wrap">
+          <div class="zee-board-label">Jouw koninkrijk</div>
+          <div class="zee-board mine" id="zeeMineBoard"></div>
+        </div>
+      </div>
+      <div class="zee-side">
+        <h3>Jouw vloot</h3>
+        <div class="zee-fleet" id="zeeMyFleet"></div>
+        <h3>Hun vloot</h3>
+        <div class="zee-fleet" id="zeeEnemyFleet"></div>
+        <button id="zeeAutoPlace">Plaats voor mij!</button>
+        <button id="zeeRestart">Opnieuw beginnen</button>
+      </div>
+    </div>
+  </div>
+```
+
+- [ ] **Step 3: Add Zeeslag game logic**
+
+In `<script>` after the Zoeken block:
+
+```javascript
+  // === MINI-GAME: ZEESLAG ===
+  const Zee = (() => {
+    const N = 8;
+    const FLEET = [
+      { id: 'koets',    name: 'Koets',      icon: '🛼', size: 5 },
+      { id: 'zwaan',    name: 'Zwanenboot', icon: '🦢', size: 4 },
+      { id: 'toren',    name: 'Toren',      icon: '🗼', size: 3 },
+      { id: 'eenhoorn', name: 'Eenhoorn',   icon: '🦄', size: 3 },
+      { id: 'juweel',   name: 'Juweel',     icon: '💎', size: 2 },
+    ];
+
+    let phase = 'placing';
+    let myShips = [];
+    let enemyShips = [];
+    let myShots = new Set();
+    let enemyShots = new Set();
+
+    function key(r, c) { return r + ',' + c; }
+    function emptyBoard() { return Array.from({ length: N }, () => new Array(N).fill(0)); }
+
+    function tryPlace(board, size) {
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const horiz = Math.random() < 0.5;
+        const r = Math.floor(Math.random() * (horiz ? N : N - size + 1));
+        const c = Math.floor(Math.random() * (horiz ? N - size + 1 : N));
+        const cells = [];
+        let ok = true;
+        for (let i = 0; i < size; i++) {
+          const rr = horiz ? r : r + i;
+          const cc = horiz ? c + i : c;
+          if (board[rr][cc]) { ok = false; break; }
+          cells.push([rr, cc]);
+        }
+        if (ok) { cells.forEach(([rr, cc]) => { board[rr][cc] = 1; }); return cells; }
+      }
+      return null;
+    }
+
+    function autoPlaceFleet() {
+      const board = emptyBoard();
+      const ships = [];
+      for (const s of FLEET) {
+        const cells = tryPlace(board, s.size);
+        if (!cells) return null;
+        ships.push({ id: s.id, name: s.name, icon: s.icon, size: s.size, cells, hits: new Set() });
+      }
+      return ships;
+    }
+
+    function isSunk(ship) { return ship.hits.size >= ship.size; }
+    function fleetSunk(ships) { return ships.every(isSunk); }
+
+    function renderBoards() {
+      const enemyBoard = document.getElementById('zeeEnemyBoard');
+      const mineBoard = document.getElementById('zeeMineBoard');
+      enemyBoard.innerHTML = '';
+      mineBoard.innerHTML = '';
+
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'zee-cell';
+          cell.dataset.r = r; cell.dataset.c = c;
+          const k = key(r, c);
+          if (myShots.has(k)) {
+            const ship = enemyShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+            if (ship) { cell.classList.add('hit'); cell.textContent = '✨'; if (isSunk(ship)) cell.classList.add('sunk'); }
+            else { cell.classList.add('miss'); cell.textContent = '💧'; }
+          }
+          cell.addEventListener('click', () => onPlayerShot(r, c));
+          enemyBoard.appendChild(cell);
+        }
+      }
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'zee-cell';
+          const k = key(r, c);
+          const ship = myShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+          if (ship) cell.classList.add('ship-mine');
+          if (enemyShots.has(k)) {
+            if (ship) { cell.classList.add('hit'); cell.textContent = '✨'; if (isSunk(ship)) cell.classList.add('sunk'); }
+            else { cell.classList.add('miss'); cell.textContent = '💧'; }
+          } else if (ship) {
+            const piece = FLEET.find(f => f.id === ship.id);
+            cell.textContent = piece.icon;
+          }
+          mineBoard.appendChild(cell);
+        }
+      }
+    }
+
+    function renderFleets() {
+      const my = document.getElementById('zeeMyFleet');
+      const en = document.getElementById('zeeEnemyFleet');
+      my.innerHTML = '';
+      en.innerHTML = '';
+      myShips.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'zee-piece' + (isSunk(s) ? ' sunk' : '');
+        const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = s.icon;
+        const name = document.createElement('span'); name.textContent = s.name;
+        div.appendChild(icon); div.appendChild(name);
+        my.appendChild(div);
+      });
+      enemyShips.forEach(s => {
+        const sunk = isSunk(s);
+        const div = document.createElement('div');
+        div.className = 'zee-piece' + (sunk ? ' sunk' : '');
+        const icon = document.createElement('span'); icon.className = 'icon'; icon.textContent = sunk ? s.icon : '❓';
+        const name = document.createElement('span'); name.textContent = sunk ? s.name : '???';
+        div.appendChild(icon); div.appendChild(name);
+        en.appendChild(div);
+      });
+    }
+
+    function setStatus(text) { document.getElementById('zeeStatus').textContent = text; }
+
+    function onPlayerShot(r, c) {
+      if (phase !== 'playing') return;
+      const k = key(r, c);
+      if (myShots.has(k)) return;
+      myShots.add(k);
+      const ship = enemyShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+      const cell = document.querySelector(`#zeeEnemyBoard .zee-cell[data-r="${r}"][data-c="${c}"]`);
+      const rect = cell ? cell.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
+      if (ship) {
+        ship.hits.add(k);
+        Audio.chime();
+        Audio.say(isSunk(ship) ? 'Gezonken!' : 'Raak!');
+        sparkle(rect.left + rect.width/2, rect.top + rect.height/2, 8);
+      } else {
+        Audio.splash();
+        Audio.say('Mis');
+      }
+      renderBoards();
+      renderFleets();
+      if (fleetSunk(enemyShips)) {
+        phase = 'over';
+        setStatus('Je hebt gewonnen!');
+        setTimeout(() => showWin('Je hebt gewonnen! 🎉', () => start()), 600);
+        return;
+      }
+      setStatus('De vijand denkt na...');
+      setTimeout(computerTurn, 900);
+    }
+
+    function computerTurn() {
+      if (phase !== 'playing') return;
+      let r, c, k;
+      do {
+        r = Math.floor(Math.random() * N);
+        c = Math.floor(Math.random() * N);
+        k = key(r, c);
+      } while (enemyShots.has(k));
+      enemyShots.add(k);
+      const ship = myShips.find(s => s.cells.some(([rr, cc]) => rr === r && cc === c));
+      if (ship) ship.hits.add(k);
+      Audio.splash();
+      renderBoards();
+      renderFleets();
+      if (fleetSunk(myShips)) {
+        phase = 'over';
+        setStatus('Bijna! Nog een keer?');
+        setTimeout(() => showWin('Bijna! Nog een keer?', () => start()), 600);
+        return;
+      }
+      setStatus('Jouw beurt!');
+    }
+
+    function start() {
+      phase = 'placing';
+      myShips = autoPlaceFleet();
+      enemyShips = autoPlaceFleet();
+      myShots = new Set();
+      enemyShots = new Set();
+      setStatus('Klik op "Plaats voor mij!" om te beginnen');
+      renderBoards();
+      renderFleets();
+    }
+
+    function autoPlaceAndStart() {
+      myShips = autoPlaceFleet();
+      enemyShips = autoPlaceFleet();
+      myShots = new Set();
+      enemyShots = new Set();
+      phase = 'playing';
+      setStatus('Jouw beurt! Tik op een vakje boven.');
+      renderBoards();
+      renderFleets();
+    }
+
+    return { start, autoPlaceAndStart };
+  })();
+
+  document.getElementById('zeeAutoPlace').addEventListener('click', () => Zee.autoPlaceAndStart());
+  document.getElementById('zeeRestart').addEventListener('click', () => Zee.start());
+```
+
+- [ ] **Step 4: Update `showScreen` to its final form**
+
+Replace `showScreen` with:
+
+```javascript
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.add('active');
+    App.currentScreen = name;
+    if (name === 'memory') Memory.newGame();
+    if (name === 'aankleden') Dress.start();
+    if (name === 'zoeken') Zoek.start();
+    if (name === 'zeeslag') Zee.start();
+  }
+```
+
+- [ ] **Step 5: Manual verify**
+
+Open file. Click Zeeslag. Expected: two 8×8 boards stacked vertically. Top "Hun koninkrijk" all-blue cells. Bottom "Jouw koninkrijk" shows your fleet (gold cells with emoji icons). Right side: "Jouw vloot" with 5 piece names+icons; "Hun vloot" with 5 ❓ ??? rows. Status: "Klik op 'Plaats voor mij!' om te beginnen". Click "Plaats voor mij!" → "Jouw beurt! Tik op een vakje boven." Tap top-board cells: hit (~30%) → pink-red ✨ + sparkle + chime + TTS "Raak!" / "Gezonken!". Miss → light-blue 💧 + splash + TTS "Mis". Computer responds after ~1s. Win → "Je hebt gewonnen! 🎉". Lose → "Bijna! Nog een keer?" — never says "you lost".
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "feat(princess): zeeslag mini-game (princess battleship vs computer)"
+```
+
+---
+
+## Task 8: Polish + iPad QA pass
+
+**Files:**
+- Modify: `princess/index.html`
+
+**Goal:** Final QA on iPad Safari + small fixes that surface during testing. No new features.
+
+- [ ] **Step 1: iPad QA checklist**
+
+Test on actual iPad if possible, else use Safari Responsive Design Mode at iPad Pro 11" landscape. Mark pass/fail for each; fix any failures inline.
+
+Home: 4 tiles visible without scrolling; mute toggle persists across screens; portrait orientation shows the rotation overlay.
+
+Memory: 24 cards fit without scrolling; tap targets ≥80×80px; flip animation smooth; win → confetti → reshuffle works; "← terug" mid-game returns home and re-entering shuffles fresh.
+
+Aankleden: drag works with finger (not just mouse); ghost follows finger smoothly; tap-to-remove works on equipped items; princess selector swaps hair/skin without losing outfit; "📷 Klaar!" celebration works.
+
+Zoeken: 15 items visible without overlap; target prompt readable; TTS announces target; wrong-tap wiggles, correct-tap fades and progresses; hint after 15s idle works; all 3 scenes cycle.
+
+Zeeslag: both boards visible without scrolling on iPad landscape; side panel readable; auto-place starts game with ships visible; cells tappable; hit/miss styling distinct; computer turn within ~1s; sunk piece reveals icon+name; win and loss screens both work without crashing.
+
+Audio: first user interaction unlocks audio (no silent first play); mute silences both TTS and SFX; cheers vary across plays.
+
+Wake lock: screen does not dim during 2 minutes of inactivity within a mini-game.
+
+- [ ] **Step 2: Add favicon + apple-touch-icon**
+
+In `<head>`, add:
+
+```html
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23FFD9E5'/><text y='75' x='50' text-anchor='middle' font-size='70'>👑</text></svg>" />
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>👑</text></svg>" />
+```
+
+- [ ] **Step 3: Final verify**
+
+Play through all 4 mini-games end-to-end on the iPad with sound on. Confirm everything runs smoothly.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add princess/index.html
+git commit -m "polish(princess): iPad QA pass + favicon/home-screen icon"
+```
+
+---
+
+## Self-review notes
+
+**Spec coverage:** Home menu (Task 1) ✓ Memory 6×4 (Task 4) ✓ Aankleden drag-and-drop (Task 5) ✓ Zoeken 3 scenes (Task 6) ✓ Zeeslag 8×8 vs computer with auto-place + random AI (Task 7) ✓ Audio: TTS nl-NL + SFX + mute (Task 2) ✓ Wake lock + iOS quirks (Task 1) ✓ Orientation lock (Task 1) ✓ Sparkle/confetti (Task 3) ✓ "Bijna! Nog een keer?" gentle loss (Task 7) ✓ Hint after 15s (Task 6) ✓ Princess selector in dress-up (Task 5) ✓ All 12 princesses with Dutch names (Task 3) ✓
+
+**Type/identifier consistency:**
+- `showScreen` is rewritten in Tasks 4, 5, 6, 7. Each rewrite is the cumulative version; Task 7's is final.
+- Audio module exposes: `chime`, `splash`, `wiggle`, `fanfare`, `say`, `cheer` — used consistently across all mini-games.
+- `princessCard(p)`, `princessById(id)` defined in Task 3, used in Task 4.
+- `sparkle(x, y, count)`, `confetti(count)`, `showWin(message, onAgain)` defined in Task 3, used in Tasks 4, 5, 6, 7.
+
+**No placeholders:** every step has concrete code or concrete browser-verification instructions.
