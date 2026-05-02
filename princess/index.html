@@ -82,6 +82,24 @@
     .orient-overlay { display: flex; }
   }
 
+  /* === EFFECTS === */
+  .sparkle { position: fixed; pointer-events: none; z-index: 999; font-size: 28px; animation: sparkle-rise 700ms ease-out forwards; }
+  @keyframes sparkle-rise {
+    0%   { transform: translate(-50%, -50%) scale(0.4) rotate(0deg); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translate(-50%, calc(-50% - 80px)) scale(1.4) rotate(180deg); opacity: 0; }
+  }
+  .confetti { position: fixed; pointer-events: none; z-index: 998; width: 12px; height: 12px; border-radius: 2px; top: -20px; animation: confetti-fall 1800ms linear forwards; }
+  @keyframes confetti-fall { 0% { transform: translate(0,0) rotate(0deg); opacity: 1; } 100% { transform: translate(var(--dx, 0), 110vh) rotate(720deg); opacity: 0.8; } }
+  .win-overlay { position: fixed; inset: 0; z-index: 800; background: rgba(255, 217, 229, 0.85); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 24px; animation: fade-in 200ms ease-out; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  .win-overlay .msg { font-size: clamp(40px, 9vh, 80px); font-weight: 900; color: var(--ink); text-shadow: 0 4px 12px rgba(255,255,255,0.7); text-align: center; }
+  .win-overlay .actions { display: flex; gap: 16px; }
+  .win-overlay button { background: white; border: none; border-radius: 20px; padding: 16px 32px; font-size: 24px; font-weight: 800; color: var(--ink); box-shadow: var(--shadow); cursor: pointer; }
+  .win-overlay button:active { transform: scale(0.95); }
+  @keyframes wiggle { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+  .wiggle { animation: wiggle 300ms ease-in-out; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
@@ -263,6 +281,101 @@
   }
   document.addEventListener('touchstart', unlockAudio, { once: true });
   document.addEventListener('click', unlockAudio, { once: true });
+
+  // === PRINCESS DATA ===
+  const PRINCESSES = [
+    { id: 'elsa',        name: 'Elsa',        dress: '#A6DDF0', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '❄️' },
+    { id: 'belle',       name: 'Belle',       dress: '#FFD93D', hair: '#A0522D', skin: '#FCE4D6', emoji: '🌹' },
+    { id: 'ariel',       name: 'Ariël',       dress: '#5FBE7E', hair: '#FF6B47', skin: '#FCE4D6', emoji: '🐚' },
+    { id: 'rapunzel',    name: 'Rapunzel',    dress: '#C18FE6', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '💜' },
+    { id: 'aurora',      name: 'Aurora',      dress: '#FFB6D5', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '🌸' },
+    { id: 'sneeuwwitje', name: 'Sneeuwwitje', dress: '#E63946', hair: '#1A1A1A', skin: '#FCE4D6', emoji: '🍎' },
+    { id: 'cinderella',  name: 'Assepoester', dress: '#BFE3FF', hair: '#F4E4B8', skin: '#FCE4D6', emoji: '✨' },
+    { id: 'jasmine',     name: 'Jasmijn',     dress: '#5DD9C1', hair: '#1A1A1A', skin: '#D2A678', emoji: '🪔' },
+    { id: 'mulan',       name: 'Mulan',       dress: '#D62828', hair: '#1A1A1A', skin: '#E8C39E', emoji: '🐉' },
+    { id: 'tiana',       name: 'Tiana',       dress: '#3FA34D', hair: '#2B1810', skin: '#8B5A3C', emoji: '🐸' },
+    { id: 'moana',       name: 'Moana',       dress: '#0F8FB2', hair: '#1A1A1A', skin: '#C68D6A', emoji: '🌺' },
+    { id: 'pocahontas',  name: 'Pocahontas',  dress: '#C97B4A', hair: '#1A1A1A', skin: '#B07A55', emoji: '🍃' },
+  ];
+
+  function princessCard(p, size = 200) {
+    return `
+      <svg viewBox="0 0 200 200" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g-${p.id}" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="${p.dress}" stop-opacity="0.5"/>
+            <stop offset="100%" stop-color="${p.dress}" stop-opacity="1"/>
+          </radialGradient>
+        </defs>
+        <circle cx="100" cy="100" r="92" fill="${p.dress}" opacity="0.15"/>
+        <ellipse cx="100" cy="80" rx="48" ry="55" fill="${p.hair}"/>
+        <path d="M 55 180 Q 60 130 80 115 L 120 115 Q 140 130 145 180 Z" fill="url(#g-${p.id})" stroke="${p.dress}" stroke-width="2"/>
+        <rect x="92" y="100" width="16" height="18" fill="${p.skin}"/>
+        <circle cx="100" cy="85" r="28" fill="${p.skin}"/>
+        <path d="M 72 75 Q 80 55 100 55 Q 120 55 128 75 Q 122 70 100 70 Q 78 70 72 75 Z" fill="${p.hair}"/>
+        <circle cx="90" cy="86" r="2.5" fill="#2a2a2a"/>
+        <circle cx="110" cy="86" r="2.5" fill="#2a2a2a"/>
+        <path d="M 92 96 Q 100 102 108 96" stroke="#a83265" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 80 60 L 86 50 L 92 58 L 100 46 L 108 58 L 114 50 L 120 60 Z" fill="#FFD700" stroke="#E6B800" stroke-width="1.5"/>
+        <circle cx="100" cy="52" r="2.5" fill="#E63946"/>
+      </svg>
+    `;
+  }
+
+  function princessById(id) { return PRINCESSES.find(p => p.id === id); }
+
+  // === EFFECTS ===
+  const SPARKLE_GLYPHS = ['✨', '⭐', '💖', '🌟', '💫'];
+  const CONFETTI_COLORS = ['#FFD9E5', '#FF9EC0', '#E8D5FF', '#FFD700', '#5FBE7E', '#A6DDF0'];
+
+  function sparkle(x, y, count = 6) {
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.textContent = SPARKLE_GLYPHS[Math.floor(Math.random() * SPARKLE_GLYPHS.length)];
+      s.style.left = (x + (Math.random() - 0.5) * 40) + 'px';
+      s.style.top = (y + (Math.random() - 0.5) * 40) + 'px';
+      document.body.appendChild(s);
+      setTimeout(() => s.remove(), 800);
+    }
+  }
+
+  function confetti(count = 60) {
+    const w = window.innerWidth;
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (Math.random() * w) + 'px';
+      c.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+      c.style.animationDelay = (Math.random() * 400) + 'ms';
+      c.style.setProperty('--dx', ((Math.random() - 0.5) * 200) + 'px');
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 2400);
+    }
+  }
+
+  function showWin(message, onAgain) {
+    const overlay = document.createElement('div');
+    overlay.className = 'win-overlay';
+    const msg = document.createElement('div');
+    msg.className = 'msg';
+    msg.textContent = message;
+    overlay.appendChild(msg);
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const btnAgain = document.createElement('button');
+    btnAgain.textContent = 'Nog een keer';
+    btnAgain.addEventListener('click', () => { overlay.remove(); onAgain && onAgain(); });
+    const btnHome = document.createElement('button');
+    btnHome.textContent = '← terug';
+    btnHome.addEventListener('click', () => { overlay.remove(); showScreen('home'); });
+    actions.appendChild(btnAgain); actions.appendChild(btnHome);
+    overlay.appendChild(actions);
+    document.body.appendChild(overlay);
+    Audio.fanfare();
+    Audio.say('Je hebt gewonnen!');
+    confetti();
+  }
 
   // === IOS QUIRK GUARDS (from scoreboard) ===
   document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
