@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#FFD9E5" />
+<title>Prinsessen Spelletjes</title>
+<style>
+  /* === RESET & GLOBALS === */
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  :root {
+    --pink: #FFD9E5;
+    --pink-deep: #FF9EC0;
+    --lavender: #E8D5FF;
+    --mint: #D5F5E8;
+    --gold: #FFD700;
+    --gold-deep: #E6B800;
+    --ink: #4A2545;
+    --shadow: 0 4px 16px rgba(180, 100, 150, 0.25);
+  }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: linear-gradient(135deg, var(--pink) 0%, var(--lavender) 100%);
+    color: var(--ink);
+    font-family: -apple-system, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden; overscroll-behavior: none;
+  }
+  body { display: flex; flex-direction: column; }
+
+  .screen { display: none; flex: 1; flex-direction: column; padding: 16px; min-height: 0; }
+  .screen.active { display: flex; }
+
+  .top-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .back-btn {
+    background: white; border: none; border-radius: 16px;
+    padding: 12px 20px; font-size: 22px; font-weight: 700; color: var(--ink);
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .back-btn:active { transform: scale(0.95); }
+  .mute-btn {
+    background: white; border: none; border-radius: 50%;
+    width: 56px; height: 56px; font-size: 28px;
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .mute-btn:active { transform: scale(0.92); }
+
+  /* === HOME MENU === */
+  .home-title {
+    text-align: center; margin: 24px 0 8px;
+    font-size: clamp(36px, 7vh, 64px); font-weight: 900;
+    color: var(--ink); text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
+  }
+  .home-subtitle { text-align: center; font-size: 22px; opacity: 0.75; margin-bottom: 24px; }
+  .tile-grid {
+    flex: 1; display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px; padding: 8px 16px 16px;
+    align-items: stretch;
+  }
+  .tile {
+    background: white; border: none; border-radius: 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    padding: 24px 12px; box-shadow: var(--shadow); cursor: pointer;
+    min-height: 180px;
+  }
+  .tile:active { transform: scale(0.96); }
+  .tile-icon { font-size: clamp(56px, 12vh, 96px); line-height: 1; }
+  .tile-label { font-size: clamp(20px, 3vh, 28px); font-weight: 800; color: var(--ink); }
+
+  /* === ORIENTATION OVERLAY === */
+  .orient-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: var(--lavender); align-items: center; justify-content: center;
+    flex-direction: column; gap: 24px; text-align: center; padding: 32px;
+    font-size: 28px; font-weight: 700; color: var(--ink);
+  }
+  .orient-overlay .icon { font-size: 96px; animation: rotate 2s ease-in-out infinite; }
+  @keyframes rotate { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) {
+    .orient-overlay { display: flex; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="orient-overlay" aria-hidden="true">
+    <div class="icon">📱</div>
+    <div>Draai je iPad zodat hij liggend staat 💖</div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="top-bar">
+      <div></div>
+      <button class="mute-btn" id="muteBtn" aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="home-title">✨ Prinsessen Spelletjes ✨</div>
+    <div class="home-subtitle">Kies een spelletje!</div>
+    <div class="tile-grid">
+      <button class="tile" data-game="memory"><div class="tile-icon">🎴</div><div class="tile-label">Memory</div></button>
+      <button class="tile" data-game="aankleden"><div class="tile-icon">👗</div><div class="tile-label">Aankleden</div></button>
+      <button class="tile" data-game="zoeken"><div class="tile-icon">🔍</div><div class="tile-label">Zoeken</div></button>
+      <button class="tile" data-game="zeeslag"><div class="tile-icon">⚓</div><div class="tile-label">Zeeslag</div></button>
+    </div>
+  </div>
+
+  <!-- MEMORY -->
+  <div class="screen" id="screen-memory">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Memory komt eraan...</div>
+  </div>
+
+  <!-- AANKLEDEN -->
+  <div class="screen" id="screen-aankleden">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Aankleden komt eraan...</div>
+  </div>
+
+  <!-- ZOEKEN -->
+  <div class="screen" id="screen-zoeken">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Zoeken komt eraan...</div>
+  </div>
+
+  <!-- ZEESLAG -->
+  <div class="screen" id="screen-zeeslag">
+    <div class="top-bar">
+      <button class="back-btn" data-back>← terug</button>
+      <button class="mute-btn" data-mute aria-label="Geluid aan/uit">🔊</button>
+    </div>
+    <div class="placeholder">Zeeslag komt eraan...</div>
+  </div>
+
+<script>
+  // === STATE & ROUTING ===
+  const App = { muted: false, currentScreen: 'home' };
+
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + name);
+    if (el) el.classList.add('active');
+    App.currentScreen = name;
+  }
+
+  document.querySelectorAll('.tile').forEach(t => {
+    t.addEventListener('click', () => showScreen(t.dataset.game));
+  });
+  document.querySelectorAll('[data-back]').forEach(b => {
+    b.addEventListener('click', () => showScreen('home'));
+  });
+
+  // === MUTE ===
+  function setMuted(m) {
+    App.muted = m;
+    document.querySelectorAll('.mute-btn, [data-mute]').forEach(b => {
+      b.textContent = m ? '🔇' : '🔊';
+    });
+  }
+  document.querySelectorAll('.mute-btn, [data-mute]').forEach(b => {
+    b.addEventListener('click', () => setMuted(!App.muted));
+  });
+
+  // === IOS QUIRK GUARDS (from scoreboard) ===
+  document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  let lastTap = 0;
+  document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTap < 300 && e.target.tagName !== 'INPUT') e.preventDefault();
+    lastTap = now;
+  }, { passive: false });
+
+  // === WAKE LOCK ===
+  let wakeLock = null;
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
+  });
+  requestWakeLock();
+</script>
+</body>
+</html>
