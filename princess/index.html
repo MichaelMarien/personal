@@ -174,6 +174,96 @@
     b.addEventListener('click', () => setMuted(!App.muted));
   });
 
+  // === AUDIO ===
+  const CHEERS = ['Goed zo!', 'Super!', 'Wat knap!', 'Geweldig!', 'Heel goed!', 'Mooi gedaan!', 'Top!'];
+  const Audio = (() => {
+    let ctx = null;
+    function ac() {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
+    function tone(freq, durMs, type = 'sine', gain = 0.15, when = 0) {
+      if (App.muted) return;
+      const a = ac();
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      const t0 = a.currentTime + when;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + durMs / 1000);
+      o.connect(g); g.connect(a.destination);
+      o.start(t0); o.stop(t0 + durMs / 1000 + 0.02);
+    }
+    function noise(durMs, gain = 0.12) {
+      if (App.muted) return;
+      const a = ac();
+      const buf = a.createBuffer(1, a.sampleRate * (durMs / 1000), a.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = a.createBufferSource();
+      src.buffer = buf;
+      const g = a.createGain();
+      g.gain.value = gain;
+      const filter = a.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1200;
+      src.connect(filter); filter.connect(g); g.connect(a.destination);
+      src.start();
+    }
+    return {
+      chime() {
+        tone(784, 120, 'triangle', 0.18, 0);
+        tone(988, 120, 'triangle', 0.18, 0.08);
+        tone(1175, 200, 'triangle', 0.18, 0.16);
+      },
+      splash() { noise(220, 0.14); },
+      wiggle() {
+        tone(330, 80, 'sine', 0.12, 0);
+        tone(294, 80, 'sine', 0.12, 0.08);
+      },
+      fanfare() {
+        tone(523, 150, 'triangle', 0.20, 0);
+        tone(659, 150, 'triangle', 0.20, 0.12);
+        tone(784, 150, 'triangle', 0.20, 0.24);
+        tone(1047, 350, 'triangle', 0.22, 0.36);
+      },
+      say(text) {
+        if (App.muted) return;
+        if (!('speechSynthesis' in window)) return;
+        try {
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'nl-NL';
+          u.rate = 1.0;
+          u.pitch = 1.15;
+          speechSynthesis.cancel();
+          speechSynthesis.speak(u);
+        } catch (e) {}
+      },
+      cheer() {
+        const phrase = CHEERS[Math.floor(Math.random() * CHEERS.length)];
+        this.chime();
+        this.say(phrase);
+        return phrase;
+      },
+    };
+  })();
+
+  // Unlock audio on first user interaction (iOS requirement)
+  let audioUnlocked = false;
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    try {
+      const a = new (window.AudioContext || window.webkitAudioContext)();
+      a.resume();
+    } catch (e) {}
+  }
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click', unlockAudio, { once: true });
+
   // === IOS QUIRK GUARDS (from scoreboard) ===
   document.addEventListener('touchstart', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   let lastTap = 0;
