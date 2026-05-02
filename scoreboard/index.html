@@ -149,38 +149,53 @@
   const logoA = document.getElementById('logoA');
   const logoB = document.getElementById('logoB');
 
-  // --- NBA team logos via fuzzy name match (ESPN CDN) ---
-  const NBA_TEAMS = [
-    { abbr: 'atl', names: ['atlanta hawks', 'hawks', 'atlanta', 'atl'] },
-    { abbr: 'bos', names: ['boston celtics', 'celtics', 'boston', 'bos'] },
-    { abbr: 'bkn', names: ['brooklyn nets', 'nets', 'brooklyn', 'bkn', 'bro'] },
-    { abbr: 'cha', names: ['charlotte hornets', 'hornets', 'charlotte', 'cha', 'cho'] },
-    { abbr: 'chi', names: ['chicago bulls', 'bulls', 'chicago', 'chi'] },
-    { abbr: 'cle', names: ['cleveland cavaliers', 'cavaliers', 'cavs', 'cleveland', 'cle'] },
-    { abbr: 'dal', names: ['dallas mavericks', 'mavericks', 'mavs', 'dallas', 'dal'] },
-    { abbr: 'den', names: ['denver nuggets', 'nuggets', 'denver', 'den'] },
-    { abbr: 'det', names: ['detroit pistons', 'pistons', 'detroit', 'det'] },
-    { abbr: 'gs',  names: ['golden state warriors', 'warriors', 'golden state', 'gsw', 'gs'] },
-    { abbr: 'hou', names: ['houston rockets', 'rockets', 'houston', 'hou'] },
-    { abbr: 'ind', names: ['indiana pacers', 'pacers', 'indiana', 'ind'] },
-    { abbr: 'lac', names: ['los angeles clippers', 'la clippers', 'clippers', 'lac'] },
-    { abbr: 'lal', names: ['los angeles lakers', 'la lakers', 'lakers', 'lal'] },
-    { abbr: 'mem', names: ['memphis grizzlies', 'grizzlies', 'memphis', 'mem'] },
-    { abbr: 'mia', names: ['miami heat', 'heat', 'miami', 'mia'] },
-    { abbr: 'mil', names: ['milwaukee bucks', 'bucks', 'milwaukee', 'mil'] },
-    { abbr: 'min', names: ['minnesota timberwolves', 'timberwolves', 'wolves', 'minnesota', 'min'] },
-    { abbr: 'no',  names: ['new orleans pelicans', 'pelicans', 'new orleans', 'nop'] },
-    { abbr: 'ny',  names: ['new york knicks', 'knicks', 'new york', 'nyk'] },
-    { abbr: 'okc', names: ['oklahoma city thunder', 'thunder', 'oklahoma city', 'oklahoma', 'okc'] },
-    { abbr: 'orl', names: ['orlando magic', 'magic', 'orlando', 'orl'] },
-    { abbr: 'phi', names: ['philadelphia 76ers', '76ers', 'sixers', 'philadelphia', 'phi'] },
-    { abbr: 'phx', names: ['phoenix suns', 'suns', 'phoenix', 'phx', 'pho'] },
-    { abbr: 'por', names: ['portland trail blazers', 'trail blazers', 'blazers', 'portland', 'por'] },
-    { abbr: 'sac', names: ['sacramento kings', 'kings', 'sacramento', 'sac'] },
-    { abbr: 'sa',  names: ['san antonio spurs', 'spurs', 'san antonio', 'sas'] },
-    { abbr: 'tor', names: ['toronto raptors', 'raptors', 'toronto', 'tor'] },
-    { abbr: 'utah', names: ['utah jazz', 'jazz', 'utah', 'uta'] },
-    { abbr: 'wsh', names: ['washington wizards', 'wizards', 'washington', 'was', 'wsh'] }
+  // --- Team logos via fuzzy name match. NBA via ESPN CDN, BNXT/local bundled. ---
+  const nba = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`;
+  const TEAMS = [
+    // NBA
+    { id: 'atl', logo: nba('atl'), names: ['atlanta hawks', 'hawks', 'atlanta', 'atl'] },
+    { id: 'bos', logo: nba('bos'), names: ['boston celtics', 'celtics', 'boston', 'bos'] },
+    { id: 'bkn', logo: nba('bkn'), names: ['brooklyn nets', 'nets', 'brooklyn', 'bkn', 'bro'] },
+    { id: 'cha', logo: nba('cha'), names: ['charlotte hornets', 'hornets', 'charlotte', 'cha', 'cho'] },
+    { id: 'chi', logo: nba('chi'), names: ['chicago bulls', 'bulls', 'chicago', 'chi'] },
+    { id: 'cle', logo: nba('cle'), names: ['cleveland cavaliers', 'cavaliers', 'cavs', 'cleveland', 'cle'] },
+    { id: 'dal', logo: nba('dal'), names: ['dallas mavericks', 'mavericks', 'mavs', 'dallas', 'dal'] },
+    { id: 'den', logo: nba('den'), names: ['denver nuggets', 'nuggets', 'denver', 'den'] },
+    { id: 'det', logo: nba('det'), names: ['detroit pistons', 'pistons', 'detroit', 'det'] },
+    { id: 'gs',  logo: nba('gs'),  names: ['golden state warriors', 'warriors', 'golden state', 'gsw', 'gs'] },
+    { id: 'hou', logo: nba('hou'), names: ['houston rockets', 'rockets', 'houston', 'hou'] },
+    { id: 'ind', logo: nba('ind'), names: ['indiana pacers', 'pacers', 'indiana', 'ind'] },
+    { id: 'lac', logo: nba('lac'), names: ['los angeles clippers', 'la clippers', 'clippers', 'lac'] },
+    { id: 'lal', logo: nba('lal'), names: ['los angeles lakers', 'la lakers', 'lakers', 'lal'] },
+    { id: 'mem', logo: nba('mem'), names: ['memphis grizzlies', 'grizzlies', 'memphis', 'mem'] },
+    { id: 'mia', logo: nba('mia'), names: ['miami heat', 'heat', 'miami', 'mia'] },
+    { id: 'mil', logo: nba('mil'), names: ['milwaukee bucks', 'bucks', 'milwaukee', 'mil'] },
+    { id: 'min', logo: nba('min'), names: ['minnesota timberwolves', 'timberwolves', 'wolves', 'minnesota', 'min'] },
+    { id: 'no',  logo: nba('no'),  names: ['new orleans pelicans', 'pelicans', 'new orleans', 'nop'] },
+    { id: 'ny',  logo: nba('ny'),  names: ['new york knicks', 'knicks', 'new york', 'nyk'] },
+    { id: 'okc', logo: nba('okc'), names: ['oklahoma city thunder', 'thunder', 'oklahoma city', 'oklahoma', 'okc'] },
+    { id: 'orl', logo: nba('orl'), names: ['orlando magic', 'magic', 'orlando', 'orl'] },
+    { id: 'phi', logo: nba('phi'), names: ['philadelphia 76ers', '76ers', 'sixers', 'philadelphia', 'phi'] },
+    { id: 'phx', logo: nba('phx'), names: ['phoenix suns', 'suns', 'phoenix', 'phx', 'pho'] },
+    { id: 'por', logo: nba('por'), names: ['portland trail blazers', 'trail blazers', 'blazers', 'portland', 'por'] },
+    { id: 'sac', logo: nba('sac'), names: ['sacramento kings', 'kings', 'sacramento', 'sac'] },
+    { id: 'sa',  logo: nba('sa'),  names: ['san antonio spurs', 'spurs', 'san antonio', 'sas'] },
+    { id: 'tor', logo: nba('tor'), names: ['toronto raptors', 'raptors', 'toronto', 'tor'] },
+    { id: 'utah', logo: nba('utah'), names: ['utah jazz', 'jazz', 'utah', 'uta'] },
+    { id: 'wsh', logo: nba('wsh'), names: ['washington wizards', 'wizards', 'washington', 'was', 'wsh'] },
+    // BNXT — Belgian division
+    { id: 'oostende', logo: 'logos/oostende.png', names: ['filou oostende', 'bc oostende', 'oostende', 'ostend', 'ostende'] },
+    { id: 'leuven-bears', logo: 'logos/leuven-bears.png', names: ['stella artois leuven bears', 'leuven bears', 'bears leuven', 'leuven'] },
+    { id: 'spirou', logo: 'logos/spirou.png', names: ['spirou charleroi', 'spirou basket', 'spirou', 'charleroi', 'val dieu spirou'] },
+    { id: 'limburg-united', logo: 'logos/limburg-united.png', names: ['hubo limburg united', 'limburg united', 'limburg', 'hubo'] },
+    { id: 'okapi-aalst', logo: 'logos/okapi-aalst.png', names: ['okapi aalst', 'okapi', 'aalst', 'aalstar'] },
+    { id: 'brussels', logo: 'logos/brussels.png', names: ['brussels basketball', 'brussels', 'brussel'] },
+    { id: 'kangoeroes', logo: 'logos/kangoeroes-mechelen.png', names: ['kangoeroes basket mechelen', 'kangoeroes mechelen', 'kangoeroes', 'mechelen'] },
+    { id: 'kortrijk', logo: 'logos/kortrijk-spurs.png', names: ['kortrijk spurs', 'kortrijk'] },
+    { id: 'mons-hainaut', logo: 'logos/mons-hainaut.png', names: ['union mons hainaut', 'mons hainaut', 'mons', 'hainaut'] },
+    { id: 'antwerp-giants', logo: 'logos/antwerp-giants.jpg', names: ['windrose giants antwerp', 'antwerp giants', 'giants antwerp', 'antwerp', 'antwerpen', 'giants', 'windrose'] },
+    // Local
+    { id: 'dynamo-bertem', logo: 'logos/dynamo-bertem.png', names: ['dynamo bertem', 'dynamo', 'bertem'] }
   ];
 
   function normalizeName(s) {
@@ -213,7 +228,7 @@
     const q = normalizeName(input);
     if (q.length < 2) return null;
     let best = null, bestRatio = 1;
-    for (const t of NBA_TEAMS) {
+    for (const t of TEAMS) {
       for (const alias of t.names) {
         const a = normalizeName(alias);
         if (q === a) return t;
@@ -232,16 +247,15 @@
   function updateLogo(input, imgEl) {
     const team = findTeam(input.value);
     if (team) {
-      const url = `https://a.espncdn.com/i/teamlogos/nba/500/${team.abbr}.png`;
-      if (imgEl.dataset.abbr !== team.abbr) {
-        imgEl.dataset.abbr = team.abbr;
-        imgEl.src = url;
+      if (imgEl.dataset.tid !== team.id) {
+        imgEl.dataset.tid = team.id;
+        imgEl.src = team.logo;
       }
       imgEl.classList.add('visible');
     } else {
       imgEl.classList.remove('visible');
       imgEl.removeAttribute('src');
-      delete imgEl.dataset.abbr;
+      delete imgEl.dataset.tid;
     }
   }
 
