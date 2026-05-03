@@ -46,7 +46,7 @@
   .team.away { background: linear-gradient(160deg, #b91c1c, #dc2626); }
   .logo {
     position: absolute; top: 50%; left: 50%;
-    width: 95%; max-width: 520px; height: auto;
+    width: 80%; max-width: 420px; height: auto;
     transform: translate(-50%, -50%);
     opacity: 0; pointer-events: none;
     transition: opacity 200ms ease;
@@ -108,7 +108,25 @@
     padding: 10px 22px; font-size: 16px; font-weight: 600; cursor: pointer;
   }
   .footer button.danger { background: #7f1d1d; }
+  .footer button.mic { background: #1f2937; display: flex; align-items: center; gap: 8px; }
+  .footer button.mic.on { background: #b91c1c; box-shadow: 0 0 0 0 rgba(220,38,38,0.7); animation: pulse 1.4s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220,38,38,0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(220,38,38,0); }
+    100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+  }
   .footer button:active { opacity: 0.8; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 70px);
+    transform: translateX(-50%);
+    background: rgba(17,23,43,0.95); color: white;
+    border: 1px solid #1f2a44; border-radius: 10px;
+    padding: 10px 16px; font-size: 16px; font-weight: 600;
+    pointer-events: none; opacity: 0; transition: opacity 200ms ease;
+    z-index: 10; max-width: 80vw; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+  .toast.err { border-color: #7f1d1d; color: #fecaca; }
   /* Landscape phone tweaks */
   @media (max-height: 480px) {
     .quarter-bar { padding: 6px; }
@@ -159,8 +177,12 @@
   </div>
 
   <div class="footer">
+    <button id="mic" class="mic" aria-label="Voice input">
+      <span id="micIcon">🎤</span><span id="micLabel">Spraak</span>
+    </button>
     <button id="reset" class="danger">Herbeginnen</button>
   </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
   let scoreA = 0, scoreB = 0, quarter = 1;
@@ -372,6 +394,149 @@
     if (confirm('Beide scores en kwart herbeginnen?')) {
       scoreA = 0; scoreB = 0; quarter = 1;
       render();
+    }
+  });
+
+  // --- Voice scoring (Dutch) ---
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function toast(msg, isErr) {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle('err', !!isErr);
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  const NL_NUM = {
+    een: 1, eentje: 1, 'één': 1, twee: 2, drie: 3,
+    '1': 1, '2': 2, '3': 3
+  };
+
+  function parseUtterance(text) {
+    const norm = normalizeName(text);
+    if (!norm) return null;
+    const tokens = norm.split(' ');
+    let amount = null, sign = 1;
+    const consumed = new Set();
+    for (let i = 0; i < tokens.length; i++) {
+      const tk = tokens[i];
+      if (tk === 'min' || tk === 'minus' || tk === 'minder') { sign = -1; consumed.add(i); continue; }
+      if (amount == null && NL_NUM[tk] != null) { amount = NL_NUM[tk]; consumed.add(i); continue; }
+      if (tk === 'punt' || tk === 'punten' || tk === 'point' || tk === 'points' || tk === 'punteen') { consumed.add(i); }
+    }
+    if (amount == null) return null;
+    const teamPart = tokens.filter((_, i) => !consumed.has(i)).join(' ').trim();
+    if (!teamPart) return null;
+    return { teamPart, amount: sign * amount };
+  }
+
+  function pickTeam(teamPart) {
+    const matched = findTeam(teamPart);
+    const aMatched = findTeam(nameA.value);
+    const bMatched = findTeam(nameB.value);
+    if (matched) {
+      if (aMatched && matched.id === aMatched.id) return 'A';
+      if (bMatched && matched.id === bMatched.id) return 'B';
+    }
+    const q = normalizeName(teamPart);
+    const nA = normalizeName(nameA.value);
+    const nB = normalizeName(nameB.value);
+    const score = (a) => {
+      if (!a) return Infinity;
+      if (a.length >= 3 && (q.includes(a) || a.includes(q))) return 0;
+      return lev(q, a) / Math.max(q.length, a.length);
+    };
+    const dA = score(nA), dB = score(nB);
+    if (dA === Infinity && dB === Infinity) return null;
+    if (Math.min(dA, dB) > 0.45) return null;
+    return dA <= dB ? 'A' : 'B';
+  }
+
+  function applyVoice(text) {
+    const parsed = parseUtterance(text);
+    if (!parsed) return false;
+    const which = pickTeam(parsed.teamPart);
+    if (!which) return false;
+    if (which === 'A') scoreA = Math.max(0, scoreA + parsed.amount);
+    else scoreB = Math.max(0, scoreB + parsed.amount);
+    render();
+    const teamLabel = (which === 'A' ? nameA.value : nameB.value) || which;
+    const sign = parsed.amount >= 0 ? '+' : '';
+    toast(`${teamLabel} ${sign}${parsed.amount}`);
+    return true;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = document.getElementById('mic');
+  const micLabel = document.getElementById('micLabel');
+  let recognition = null;
+  let micOn = false;
+  let restartTimer = null;
+
+  if (!SR) {
+    micBtn.disabled = true;
+    micBtn.style.opacity = 0.5;
+    micLabel.textContent = 'Geen spraak';
+  } else {
+    recognition = new SR();
+    recognition.lang = 'nl-NL';
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
+
+    recognition.onresult = (ev) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const res = ev.results[i];
+        if (!res.isFinal) continue;
+        let applied = false;
+        for (let k = 0; k < res.length; k++) {
+          if (applyVoice(res[k].transcript)) { applied = true; break; }
+        }
+        if (!applied) {
+          toast(`? ${res[0].transcript}`, true);
+        }
+      }
+    };
+
+    recognition.onerror = (ev) => {
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+        micOn = false;
+        updateMicUI();
+        toast('Microfoon geweigerd', true);
+      } else if (ev.error === 'no-speech' || ev.error === 'audio-capture' || ev.error === 'aborted') {
+        // benign on iOS — onend will handle restart
+      } else {
+        toast('Spraak fout: ' + ev.error, true);
+      }
+    };
+
+    recognition.onend = () => {
+      if (micOn) {
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          if (!micOn) return;
+          try { recognition.start(); } catch (e) {}
+        }, 250);
+      }
+    };
+  }
+
+  function updateMicUI() {
+    micBtn.classList.toggle('on', micOn);
+    micLabel.textContent = micOn ? 'Luistert…' : 'Spraak';
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (!recognition) return;
+    if (micOn) {
+      micOn = false;
+      try { recognition.stop(); } catch (e) {}
+      updateMicUI();
+    } else {
+      micOn = true;
+      try { recognition.start(); updateMicUI(); }
+      catch (e) { micOn = false; updateMicUI(); toast('Kon mic niet starten', true); }
     }
   });
 
