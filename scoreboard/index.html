@@ -33,6 +33,20 @@
   }
   .qbtn:active { background: #2c3a5e; }
   .qlabel { min-width: 110px; text-align: center; font-weight: 600; letter-spacing: 0.5px; }
+  .clock {
+    font-size: clamp(22px, 3.2vh, 32px);
+    font-weight: 800; font-variant-numeric: tabular-nums;
+    background: #1f2a44; color: white;
+    border-radius: 10px; padding: 6px 14px;
+    min-width: 96px; text-align: center;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .clock.running { background: #166534; }
+  .clock.expired { background: #7f1d1d; animation: clockPulse 0.9s infinite; }
+  @keyframes clockPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.6); }
+    50% { box-shadow: 0 0 0 10px rgba(220,38,38,0); }
+  }
   .teams {
     flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     padding: 8px; min-height: 0;
@@ -142,6 +156,7 @@
     <button class="qbtn" id="qMinus" aria-label="Previous quarter">−</button>
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
+    <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
   </div>
 
   <div class="teams">
@@ -312,6 +327,117 @@
     }
   }
 
+  // --- Game clock ---
+  const CLOCK_DEFAULT_MS = 10 * 60 * 1000;
+  let clockMs = CLOCK_DEFAULT_MS;
+  let clockRunning = false;
+  let clockEnd = 0;
+  let clockRaf = null;
+  let clockAudio = null;
+  const clockEl = document.getElementById('clock');
+
+  function getClockMs() {
+    return clockRunning ? Math.max(0, clockEnd - performance.now()) : clockMs;
+  }
+
+  function formatClock(ms) {
+    if (ms <= 0) return '0:00.0';
+    const totalSec = ms / 1000;
+    if (totalSec >= 60) {
+      const m = Math.floor(totalSec / 60);
+      const s = Math.floor(totalSec % 60);
+      return m + ':' + String(s).padStart(2, '0');
+    }
+    return totalSec.toFixed(1);
+  }
+
+  function renderClock() {
+    let ms;
+    if (clockRunning) {
+      ms = Math.max(0, clockEnd - performance.now());
+      if (ms === 0) {
+        clockMs = 0;
+        clockRunning = false;
+        cancelAnimationFrame(clockRaf);
+        buzzer();
+      } else {
+        clockMs = ms;
+      }
+    } else {
+      ms = clockMs;
+    }
+    clockEl.textContent = formatClock(ms);
+    clockEl.classList.toggle('running', clockRunning);
+    clockEl.classList.toggle('expired', ms <= 0);
+    if (clockRunning) clockRaf = requestAnimationFrame(renderClock);
+  }
+
+  function startClock() {
+    if (clockMs <= 0) return;
+    if (!clockAudio) {
+      try { clockAudio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    clockRunning = true;
+    clockEnd = performance.now() + clockMs;
+    renderClock();
+  }
+
+  function pauseClock() {
+    if (!clockRunning) return;
+    clockMs = Math.max(0, clockEnd - performance.now());
+    clockRunning = false;
+    cancelAnimationFrame(clockRaf);
+    renderClock();
+    save();
+  }
+
+  function resetClock() {
+    clockRunning = false;
+    cancelAnimationFrame(clockRaf);
+    clockMs = CLOCK_DEFAULT_MS;
+    renderClock();
+    save();
+  }
+
+  function buzzer() {
+    save();
+    if (navigator.vibrate) { try { navigator.vibrate([300, 100, 300]); } catch (e) {} }
+    if (!clockAudio) return;
+    try {
+      const o = clockAudio.createOscillator();
+      const g = clockAudio.createGain();
+      o.type = 'square';
+      o.frequency.value = 220;
+      const t = clockAudio.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.4, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+      o.connect(g); g.connect(clockAudio.destination);
+      o.start(t);
+      o.stop(t + 1.3);
+    } catch (e) {}
+  }
+
+  let pressTimer = null, longPressed = false;
+  clockEl.addEventListener('pointerdown', () => {
+    longPressed = false;
+    clearTimeout(pressTimer);
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      resetClock();
+      if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
+    }, 600);
+  });
+  const cancelPress = () => clearTimeout(pressTimer);
+  clockEl.addEventListener('pointerleave', cancelPress);
+  clockEl.addEventListener('pointercancel', cancelPress);
+  clockEl.addEventListener('pointerup', () => {
+    clearTimeout(pressTimer);
+    if (longPressed) return;
+    if (clockRunning) pauseClock();
+    else startClock();
+  });
+
   // --- Persistence: try localStorage, fall back to URL hash ---
   const STORAGE_KEY = 'scoreboard_state_v1';
   let useLocalStorage = true;
@@ -323,7 +449,7 @@
   }
 
   function save() {
-    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value };
+    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()) };
     if (useLocalStorage) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     } else {
@@ -347,6 +473,7 @@
       quarter = s.q || 1;
       if (s.na) nameA.value = s.na;
       if (s.nb) nameB.value = s.nb;
+      if (typeof s.c === 'number' && s.c >= 0) clockMs = s.c;
     } catch (e) {}
   }
 
@@ -394,6 +521,7 @@
   document.getElementById('reset').addEventListener('click', () => {
     if (confirm('Beide scores en kwart herbeginnen?')) {
       scoreA = 0; scoreB = 0; quarter = 1;
+      resetClock();
       render();
     }
   });
@@ -608,6 +736,7 @@
 
   load();
   render();
+  renderClock();
   updateLogo(nameA, logoA, logoMiniA);
   updateLogo(nameB, logoB, logoMiniB);
 </script>
