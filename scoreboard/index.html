@@ -46,7 +46,7 @@
   .team.away { background: linear-gradient(160deg, #b91c1c, #dc2626); }
   .logo {
     position: absolute; top: 50%; left: 50%;
-    width: 70%; max-width: 320px; height: auto;
+    width: 95%; max-width: 520px; height: auto;
     transform: translate(-50%, -50%);
     opacity: 0; pointer-events: none;
     transition: opacity 200ms ease;
@@ -71,6 +71,13 @@
     font-size: 20px; font-weight: 700; cursor: pointer; padding: 0;
   }
   .clear:active { background: rgba(255,255,255,0.3); }
+  .logo-mini {
+    flex: 0 0 auto; width: 44px; height: 44px; align-self: center;
+    object-fit: contain; border-radius: 6px;
+    background: rgba(255,255,255,0.9); padding: 3px;
+    display: none;
+  }
+  .logo-mini.visible { display: block; }
   .score {
     font-size: clamp(110px, 28vh, 240px);
     font-weight: 900; line-height: 1; margin: 6px 0;
@@ -122,6 +129,7 @@
     <div class="team home">
       <img class="logo" id="logoA" alt="" />
       <div class="name-row">
+        <img class="logo-mini" id="logoMiniA" alt="" />
         <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="30" />
         <button class="clear" data-clear="A" aria-label="Clear home name">×</button>
       </div>
@@ -136,6 +144,7 @@
     <div class="team away">
       <img class="logo" id="logoB" alt="" />
       <div class="name-row">
+        <img class="logo-mini" id="logoMiniB" alt="" />
         <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="30" />
         <button class="clear" data-clear="B" aria-label="Clear away name">×</button>
       </div>
@@ -162,6 +171,8 @@
   const nameB = document.getElementById('nameB');
   const logoA = document.getElementById('logoA');
   const logoB = document.getElementById('logoB');
+  const logoMiniA = document.getElementById('logoMiniA');
+  const logoMiniB = document.getElementById('logoMiniB');
 
   // --- Team logos via fuzzy name match. NBA via ESPN CDN, BNXT/local bundled. ---
   const nba = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`;
@@ -258,18 +269,23 @@
     return best;
   }
 
-  function updateLogo(input, imgEl) {
+  function updateLogo(input, imgEl, miniEl) {
     const team = findTeam(input.value);
+    const els = miniEl ? [imgEl, miniEl] : [imgEl];
     if (team) {
-      if (imgEl.dataset.tid !== team.id) {
-        imgEl.dataset.tid = team.id;
-        imgEl.src = team.logo;
+      for (const el of els) {
+        if (el.dataset.tid !== team.id) {
+          el.dataset.tid = team.id;
+          el.src = team.logo;
+        }
+        el.classList.add('visible');
       }
-      imgEl.classList.add('visible');
     } else {
-      imgEl.classList.remove('visible');
-      imgEl.removeAttribute('src');
-      delete imgEl.dataset.tid;
+      for (const el of els) {
+        el.classList.remove('visible');
+        el.removeAttribute('src');
+        delete el.dataset.tid;
+      }
     }
   }
 
@@ -336,16 +352,17 @@
     render();
   });
 
-  nameA.addEventListener('input', () => { updateLogo(nameA, logoA); save(); });
-  nameB.addEventListener('input', () => { updateLogo(nameB, logoB); save(); });
+  nameA.addEventListener('input', () => { updateLogo(nameA, logoA, logoMiniA); save(); });
+  nameB.addEventListener('input', () => { updateLogo(nameB, logoB, logoMiniB); save(); });
 
   document.querySelectorAll('button[data-clear]').forEach(btn => {
     btn.addEventListener('click', () => {
       const which = btn.dataset.clear;
       const input = which === 'A' ? nameA : nameB;
       const img = which === 'A' ? logoA : logoB;
+      const mini = which === 'A' ? logoMiniA : logoMiniB;
       input.value = '';
-      updateLogo(input, img);
+      updateLogo(input, img, mini);
       save();
       input.focus();
     });
@@ -383,8 +400,8 @@
 
   load();
   render();
-  updateLogo(nameA, logoA);
-  updateLogo(nameB, logoB);
+  updateLogo(nameA, logoA, logoMiniA);
+  updateLogo(nameB, logoB, logoMiniB);
 </script>
 </body>
 </html>
