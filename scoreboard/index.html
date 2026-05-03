@@ -605,9 +605,11 @@
   }
 
   // Local on-device Dutch speech recognition via vosk-browser.
-  // Model is hosted in this repo, served by jsDelivr's CDN.
+  // Model lives in this repo, served by GitHub Pages (Fastly CDN, CORS:*).
+  // jsDelivr's /gh/ endpoint can't be used here — its 20 MB per-file limit
+  // rejects this 40 MB tar.gz with a 403.
   const VOSK_MODEL_URL =
-    'https://cdn.jsdelivr.net/gh/MichaelMarien/personal@main/scoreboard/models/vosk-model-small-nl-0.22.tar.gz';
+    'https://michaelmarien.github.io/personal/scoreboard/models/vosk-model-small-nl-0.22.tar.gz';
   const micBtn = document.getElementById('mic');
   const micLabel = document.getElementById('micLabel');
   let voskModel = null;
