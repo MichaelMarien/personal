@@ -8,6 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#0b1020" />
 <title>Scoreboard</title>
+<script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js"></script>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
   html, body {
@@ -467,84 +468,118 @@
     return true;
   }
 
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // Local on-device Dutch speech recognition via vosk-browser.
+  // Model is hosted in this repo, served by jsDelivr's CDN.
+  const VOSK_MODEL_URL =
+    'https://cdn.jsdelivr.net/gh/MichaelMarien/personal@main/scoreboard/models/vosk-model-small-nl-0.22.tar.gz';
   const micBtn = document.getElementById('mic');
   const micLabel = document.getElementById('micLabel');
-  let recognition = null;
+  let voskModel = null;
+  let voskRecognizer = null;
+  let audioCtx = null;
+  let micStream = null;
+  let micNode = null;
+  let micSource = null;
   let micOn = false;
-  let restartTimer = null;
+  let modelLoading = false;
 
-  if (!SR) {
-    micBtn.disabled = true;
-    micBtn.style.opacity = 0.5;
-    micLabel.textContent = 'Geen spraak';
-  } else {
-    recognition = new SR();
-    recognition.lang = 'nl-NL';
-    // iOS Safari is unreliable with continuous=true — it stops firing
-    // results after the first utterance. Use single-shot mode and
-    // immediately restart on `onend` to fake continuous listening.
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 3;
-
-    recognition.onresult = (ev) => {
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const res = ev.results[i];
-        if (!res.isFinal) continue;
-        let applied = false;
-        for (let k = 0; k < res.length; k++) {
-          if (applyVoice(res[k].transcript)) { applied = true; break; }
-        }
-        if (!applied) {
-          const heard = (res[0].transcript || '').trim();
-          if (heard.length >= 3) toast(`? ${heard}`, true);
+  // Vocabulary: numbers + "punt(en)"/"min" + every word that appears in any
+  // team alias. Constraining the recognizer to this set dramatically improves
+  // accuracy on a small fixed-vocab task like scoring.
+  function buildVocab() {
+    const words = new Set([
+      '[unk]',
+      'een', 'eentje', 'twee', 'drie',
+      'punt', 'punten',
+      'min', 'minus'
+    ]);
+    for (const t of TEAMS) {
+      for (const alias of t.names) {
+        for (const tk of normalizeName(alias).split(' ')) {
+          if (tk.length >= 2 && !/^[0-9]+$/.test(tk)) words.add(tk);
         }
       }
-    };
-
-    recognition.onerror = (ev) => {
-      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-        micOn = false;
-        updateMicUI();
-        toast('Microfoon geweigerd', true);
-      }
-      // 'no-speech', 'audio-capture', 'aborted', 'network' are transient on iOS;
-      // onend will fire and we'll restart there.
-    };
-
-    const restart = () => {
-      if (!micOn) return;
-      try { recognition.start(); }
-      catch (e) {
-        // Already started or invalid state — try again shortly.
-        clearTimeout(restartTimer);
-        restartTimer = setTimeout(restart, 200);
-      }
-    };
-
-    recognition.onend = () => {
-      if (!micOn) return;
-      clearTimeout(restartTimer);
-      restartTimer = setTimeout(restart, 50);
-    };
+    }
+    return JSON.stringify([...words]);
   }
 
+  function setMicLabel(text) { micLabel.textContent = text; }
   function updateMicUI() {
     micBtn.classList.toggle('on', micOn);
-    micLabel.textContent = micOn ? 'Luistert…' : 'Spraak';
+    setMicLabel(micOn ? 'Luistert…' : 'Spraak');
   }
 
-  micBtn.addEventListener('click', () => {
-    if (!recognition) return;
-    if (micOn) {
-      micOn = false;
-      try { recognition.stop(); } catch (e) {}
+  if (!window.Vosk) {
+    micBtn.disabled = true;
+    micBtn.style.opacity = 0.5;
+    setMicLabel('Geen spraak');
+  }
+
+  async function ensureModel() {
+    if (voskModel) return voskModel;
+    if (modelLoading) return null;
+    modelLoading = true;
+    setMicLabel('Model laden…');
+    micBtn.disabled = true;
+    try {
+      voskModel = await Vosk.createModel(VOSK_MODEL_URL);
+      return voskModel;
+    } catch (e) {
+      toast('Model niet geladen', true);
+      throw e;
+    } finally {
+      modelLoading = false;
+      micBtn.disabled = false;
       updateMicUI();
-    } else {
-      micOn = true;
-      try { recognition.start(); updateMicUI(); }
-      catch (e) { micOn = false; updateMicUI(); toast('Kon mic niet starten', true); }
+    }
+  }
+
+  async function startMic() {
+    const model = await ensureModel();
+    if (!model) return;
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    voskRecognizer = new model.KaldiRecognizer(audioCtx.sampleRate, buildVocab());
+    voskRecognizer.on('result', (msg) => {
+      const text = ((msg.result && msg.result.text) || '').trim();
+      if (!text || text === '[unk]') return;
+      // Strip stray [unk] tokens that Vosk sometimes inserts.
+      const cleaned = text.replace(/\[unk\]/g, '').replace(/\s+/g, ' ').trim();
+      if (!cleaned) return;
+      if (!applyVoice(cleaned)) toast(`? ${cleaned}`, true);
+    });
+    micSource = audioCtx.createMediaStreamSource(micStream);
+    micNode = audioCtx.createScriptProcessor(4096, 1, 1);
+    micNode.onaudioprocess = (ev) => {
+      try { voskRecognizer.acceptWaveform(ev.inputBuffer); } catch (e) {}
+    };
+    micSource.connect(micNode);
+    micNode.connect(audioCtx.destination);
+    micOn = true;
+    updateMicUI();
+  }
+
+  function stopMic() {
+    micOn = false;
+    if (micNode) { try { micNode.disconnect(); } catch (e) {} micNode = null; }
+    if (micSource) { try { micSource.disconnect(); } catch (e) {} micSource = null; }
+    if (voskRecognizer) { try { voskRecognizer.remove(); } catch (e) {} voskRecognizer = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (audioCtx) { try { audioCtx.close(); } catch (e) {} audioCtx = null; }
+    updateMicUI();
+  }
+
+  micBtn.addEventListener('click', async () => {
+    if (!window.Vosk) return;
+    if (micOn) { stopMic(); return; }
+    try { await startMic(); }
+    catch (e) {
+      stopMic();
+      const msg = (e && e.name === 'NotAllowedError') ? 'Microfoon geweigerd' : 'Kon mic niet starten';
+      toast(msg, true);
     }
   });
 
