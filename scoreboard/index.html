@@ -23,9 +23,16 @@
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   .quarter-bar {
+    position: relative;
     display: flex; align-items: center; justify-content: center; gap: 16px;
     padding: 10px; background: #11172b; border-bottom: 1px solid #1f2a44;
     font-size: clamp(16px, 2.5vh, 22px);
+  }
+  .version {
+    position: absolute; top: 2px; right: 6px;
+    font-size: 10px; opacity: 0.35;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none; user-select: none;
   }
   .qbtn {
     background: #1f2a44; color: white; border: none; border-radius: 10px;
@@ -157,6 +164,7 @@
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
+    <div class="version" aria-hidden="true">v1 · 2026-05-03</div>
   </div>
 
   <div class="teams">
