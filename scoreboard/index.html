@@ -481,8 +481,11 @@
   } else {
     recognition = new SR();
     recognition.lang = 'nl-NL';
-    recognition.continuous = true;
-    recognition.interimResults = false;
+    // iOS Safari is unreliable with continuous=true — it stops firing
+    // results after the first utterance. Use single-shot mode and
+    // immediately restart on `onend` to fake continuous listening.
+    recognition.continuous = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 3;
 
     recognition.onresult = (ev) => {
@@ -494,7 +497,8 @@
           if (applyVoice(res[k].transcript)) { applied = true; break; }
         }
         if (!applied) {
-          toast(`? ${res[0].transcript}`, true);
+          const heard = (res[0].transcript || '').trim();
+          if (heard.length >= 3) toast(`? ${heard}`, true);
         }
       }
     };
@@ -504,21 +508,25 @@
         micOn = false;
         updateMicUI();
         toast('Microfoon geweigerd', true);
-      } else if (ev.error === 'no-speech' || ev.error === 'audio-capture' || ev.error === 'aborted') {
-        // benign on iOS — onend will handle restart
-      } else {
-        toast('Spraak fout: ' + ev.error, true);
+      }
+      // 'no-speech', 'audio-capture', 'aborted', 'network' are transient on iOS;
+      // onend will fire and we'll restart there.
+    };
+
+    const restart = () => {
+      if (!micOn) return;
+      try { recognition.start(); }
+      catch (e) {
+        // Already started or invalid state — try again shortly.
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(restart, 200);
       }
     };
 
     recognition.onend = () => {
-      if (micOn) {
-        clearTimeout(restartTimer);
-        restartTimer = setTimeout(() => {
-          if (!micOn) return;
-          try { recognition.start(); } catch (e) {}
-        }, 250);
-      }
+      if (!micOn) return;
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(restart, 50);
     };
   }
 
