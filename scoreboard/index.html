@@ -52,17 +52,25 @@
     transition: opacity 200ms ease;
     filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
   }
-  .logo.visible { opacity: 0.22; }
-  .name, .score, .buttons { position: relative; z-index: 1; }
+  .logo.visible { opacity: 0.5; }
+  .name-row, .score, .buttons { position: relative; z-index: 1; }
+  .name-row { display: flex; align-items: stretch; gap: 6px; width: 100%; }
   .name {
     background: rgba(255,255,255,0.1); border: none; color: white;
     font-size: clamp(18px, 3.5vh, 30px); font-weight: 700;
-    text-align: center; width: 100%; outline: none;
+    text-align: center; flex: 1; min-width: 0; outline: none;
     user-select: text; -webkit-user-select: text;
     padding: 8px; border-radius: 8px;
     border: 1px dashed rgba(255,255,255,0.4);
   }
   .name:focus { background: rgba(255,255,255,0.2); border-style: solid; }
+  .clear {
+    flex: 0 0 auto; width: 44px;
+    background: rgba(255,255,255,0.18); color: white;
+    border: 1px solid rgba(255,255,255,0.4); border-radius: 8px;
+    font-size: 20px; font-weight: 700; cursor: pointer; padding: 0;
+  }
+  .clear:active { background: rgba(255,255,255,0.3); }
   .score {
     font-size: clamp(110px, 28vh, 240px);
     font-weight: 900; line-height: 1; margin: 6px 0;
@@ -113,7 +121,10 @@
   <div class="teams">
     <div class="team home">
       <img class="logo" id="logoA" alt="" />
-      <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="30" />
+      <div class="name-row">
+        <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="30" />
+        <button class="clear" data-clear="A" aria-label="Clear home name">×</button>
+      </div>
       <div class="score" id="scoreA">0</div>
       <div class="buttons">
         <button class="sbtn" data-team="A" data-amt="1">+1</button>
@@ -124,7 +135,10 @@
     </div>
     <div class="team away">
       <img class="logo" id="logoB" alt="" />
-      <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="30" />
+      <div class="name-row">
+        <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="30" />
+        <button class="clear" data-clear="B" aria-label="Clear away name">×</button>
+      </div>
       <div class="score" id="scoreB">0</div>
       <div class="buttons">
         <button class="sbtn" data-team="B" data-amt="1">+1</button>
@@ -324,6 +338,18 @@
 
   nameA.addEventListener('input', () => { updateLogo(nameA, logoA); save(); });
   nameB.addEventListener('input', () => { updateLogo(nameB, logoB); save(); });
+
+  document.querySelectorAll('button[data-clear]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const which = btn.dataset.clear;
+      const input = which === 'A' ? nameA : nameB;
+      const img = which === 'A' ? logoA : logoB;
+      input.value = '';
+      updateLogo(input, img);
+      save();
+      input.focus();
+    });
+  });
 
   document.getElementById('reset').addEventListener('click', () => {
     if (confirm('Beide scores en kwart herbeginnen?')) {
