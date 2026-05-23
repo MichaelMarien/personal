@@ -164,7 +164,7 @@
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
-    <div class="version" aria-hidden="true">v3 · 2026-05-03</div>
+    <div class="version" aria-hidden="true">v4 · 2026-05-03</div>
   </div>
 
   <div class="teams">
@@ -265,8 +265,11 @@
     { id: 'kortrijk', logo: 'logos/kortrijk-spurs.png', names: ['kortrijk spurs', 'kortrijk'] },
     { id: 'mons-hainaut', logo: 'logos/mons-hainaut.png', names: ['union mons hainaut', 'mons hainaut', 'mons', 'hainaut'] },
     { id: 'antwerp-giants', logo: 'logos/antwerp-giants.jpg', names: ['windrose giants antwerp', 'antwerp giants', 'giants antwerp', 'antwerp', 'antwerpen', 'giants', 'windrose'] },
-    // Local
-    { id: 'dynamo-bertem', logo: 'logos/dynamo-bertem.png', names: ['dynamo bertem', 'dynamo', 'bertem'] }
+    // Local / regional (Basketbal Vlaanderen)
+    { id: 'dynamo-bertem', logo: 'logos/dynamo-bertem.png', names: ['dynamo bertem', 'dynamo', 'bertem'] },
+    { id: 'gsg-aarschot', logo: 'logos/gsg-aarschot.png', names: ['gsg aarschot', 'gsg', 'aarschot'] },
+    { id: 'betekom-bullets', logo: 'logos/betekom-bullets.png', names: ['betekom bullets', 'betekom', 'bullets'] },
+    { id: 'bavi-vilvoorde', logo: 'logos/bavi-vilvoorde.png', names: ['bavi vilvoorde', 'basketball vilvoorde', 'bavi', 'vilvoorde'] }
   ];
 
   function normalizeName(s) {
@@ -380,11 +383,29 @@
     if (clockRunning) clockRaf = requestAnimationFrame(renderClock);
   }
 
+  // Fully unlock the AudioContext from a user gesture. iOS Safari only treats
+  // an AudioContext as "running" after audio actually plays inside the gesture
+  // — just calling resume() isn't enough. A 1-sample silent buffer does it.
+  function unlockAudio() {
+    if (!clockAudio) {
+      try { clockAudio = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) { return; }
+    }
+    if (clockAudio.state === 'suspended') {
+      clockAudio.resume().catch(() => {});
+    }
+    try {
+      const buf = clockAudio.createBuffer(1, 1, 22050);
+      const src = clockAudio.createBufferSource();
+      src.buffer = buf;
+      src.connect(clockAudio.destination);
+      src.start(0);
+    } catch (e) {}
+  }
+
   function startClock() {
     if (clockMs <= 0) return;
-    if (!clockAudio) {
-      try { clockAudio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
-    }
+    unlockAudio();
     clockRunning = true;
     clockEnd = performance.now() + clockMs;
     renderClock();
