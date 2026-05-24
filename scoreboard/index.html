@@ -75,7 +75,7 @@
     filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
   }
   .logo.visible { opacity: 0.5; }
-  .name-row, .score, .buttons, .foul-btn { position: relative; z-index: 1; }
+  .name-row, .score, .buttons, .foul-btn, .controls { position: relative; z-index: 1; }
   .name-row { display: flex; align-items: stretch; gap: 6px; width: 100%; }
   .name {
     background: rgba(255,255,255,0.1); border: none; color: white;
@@ -116,11 +116,14 @@
     font-variant-numeric: tabular-nums;
     text-shadow: 0 4px 20px rgba(0,0,0,0.3);
   }
+  .controls {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%;
+  }
   .buttons {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%;
   }
   .foul-btn {
-    align-self: center; margin-bottom: 6px;
+    align-self: center;
     background: rgba(255,255,255,0.12); color: white;
     border: 1px solid rgba(255,255,255,0.4); border-radius: 8px;
     padding: 5px 14px; font-size: clamp(12px, 1.8vh, 15px); font-weight: 700;
@@ -257,12 +260,14 @@
         <button class="clear" data-clear="A" aria-label="Clear home name">×</button>
       </div>
       <div class="score" id="scoreA">0</div>
-      <button class="foul-btn" data-foul="A" aria-label="Add foul home">Fouten: <span id="foulA">0</span></button>
-      <div class="buttons">
-        <button class="sbtn" data-team="A" data-amt="1">+1</button>
-        <button class="sbtn" data-team="A" data-amt="2">+2</button>
-        <button class="sbtn" data-team="A" data-amt="3">+3</button>
-        <button class="sbtn minus" data-team="A" data-amt="-1">−1</button>
+      <div class="controls">
+        <button class="foul-btn" data-foul="A" aria-label="Add foul home">Fouten: <span id="foulA">0</span></button>
+        <div class="buttons">
+          <button class="sbtn" data-team="A" data-amt="1">+1</button>
+          <button class="sbtn" data-team="A" data-amt="2">+2</button>
+          <button class="sbtn" data-team="A" data-amt="3">+3</button>
+          <button class="sbtn minus" data-team="A" data-amt="-1">−1</button>
+        </div>
       </div>
     </div>
     <div class="team away">
@@ -274,12 +279,14 @@
         <button class="clear" data-clear="B" aria-label="Clear away name">×</button>
       </div>
       <div class="score" id="scoreB">0</div>
-      <button class="foul-btn" data-foul="B" aria-label="Add foul away">Fouten: <span id="foulB">0</span></button>
-      <div class="buttons">
-        <button class="sbtn" data-team="B" data-amt="1">+1</button>
-        <button class="sbtn" data-team="B" data-amt="2">+2</button>
-        <button class="sbtn" data-team="B" data-amt="3">+3</button>
-        <button class="sbtn minus" data-team="B" data-amt="-1">−1</button>
+      <div class="controls">
+        <button class="foul-btn" data-foul="B" aria-label="Add foul away">Fouten: <span id="foulB">0</span></button>
+        <div class="buttons">
+          <button class="sbtn" data-team="B" data-amt="1">+1</button>
+          <button class="sbtn" data-team="B" data-amt="2">+2</button>
+          <button class="sbtn" data-team="B" data-amt="3">+3</button>
+          <button class="sbtn minus" data-team="B" data-amt="-1">−1</button>
+        </div>
       </div>
     </div>
   </div>
