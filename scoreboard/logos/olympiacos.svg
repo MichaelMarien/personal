@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="PIRAEUS">
+  <defs>
+    <clipPath id="c"><circle cx="100" cy="100" r="92"/></clipPath>
+  </defs>
+  <circle cx="100" cy="100" r="96" fill="#111"/>
+  <g clip-path="url(#c)">
+    <rect x="8" y="8.0" width="184" height="61.8" fill="#e30613"/>
+    <rect x="8" y="69.3" width="184" height="61.8" fill="#ffffff"/>
+    <rect x="8" y="130.7" width="184" height="61.8" fill="#e30613"/>
+  </g>
+  <circle cx="100" cy="100" r="92" fill="none" stroke="#fff" stroke-width="4"/>
+  <text x="100" y="116" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="48" fill="#fff" stroke="#111" stroke-width="4" paint-order="stroke">OLY</text>
+  <text x="100" y="148" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#fff" stroke="#111" stroke-width="2.5" paint-order="stroke">PIRAEUS</text>
+</svg>
