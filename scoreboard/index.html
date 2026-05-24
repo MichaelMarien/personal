@@ -159,6 +159,60 @@
   }
   .toast.show { opacity: 1; }
   .toast.err { border-color: #7f1d1d; color: #fecaca; }
+  /* Player roster / stats modal */
+  .logo-mini { cursor: default; transition: box-shadow 150ms ease; }
+  .logo-mini.has-roster { cursor: pointer; box-shadow: 0 0 0 2px rgba(96,165,250,0.9); }
+  .logo-mini.has-roster:active { transform: scale(0.92); }
+  .modal {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(5,8,18,0.72);
+    padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px);
+  }
+  .modal.show { display: flex; }
+  .modal-panel {
+    background: #11172b; border: 1px solid #1f2a44; border-radius: 16px;
+    width: 100%; max-width: 460px; max-height: 88vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-bottom: 1px solid #1f2a44;
+  }
+  .modal-head img { width: 34px; height: 34px; object-fit: contain; flex: 0 0 auto; }
+  .modal-title { flex: 1; min-width: 0; font-size: 18px; font-weight: 800; line-height: 1.15; }
+  .modal-title small { display: block; font-size: 12px; font-weight: 500; opacity: 0.6; margin-top: 2px; }
+  .modal-x, .modal-back {
+    flex: 0 0 auto; height: 36px; min-width: 36px; padding: 0 11px;
+    background: #1f2a44; color: #fff; border: none; border-radius: 9px;
+    font-size: 18px; font-weight: 700; cursor: pointer;
+  }
+  .modal-back { font-size: 14px; }
+  .modal-x:active, .modal-back:active { background: #2c3a5e; }
+  .modal-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .roster-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; cursor: pointer; border-bottom: 1px solid #1a2237;
+  }
+  .roster-row:active { background: #1a2237; }
+  .roster-no {
+    flex: 0 0 auto; width: 32px; text-align: center;
+    font-size: 15px; font-weight: 800; color: #93c5fd; font-variant-numeric: tabular-nums;
+  }
+  .roster-name { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .roster-pos {
+    flex: 0 0 auto; font-size: 12px; font-weight: 700;
+    color: #0b1020; background: rgba(255,255,255,0.85); border-radius: 6px; padding: 2px 7px;
+  }
+  .roster-pts { flex: 0 0 auto; width: 62px; text-align: right; font-size: 13px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+  .player-detail { padding: 16px 14px; }
+  .player-detail h3 { margin: 0 0 3px; font-size: 22px; }
+  .player-detail .meta { font-size: 13px; opacity: 0.65; margin-bottom: 16px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-cell { background: #1a2237; border-radius: 10px; padding: 12px 8px; text-align: center; }
+  .stat-cell .val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat-cell .lbl { font-size: 11px; opacity: 0.6; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
   /* Landscape phone tweaks */
   @media (max-height: 480px) {
     .quarter-bar { padding: 6px; }
@@ -219,6 +273,18 @@
     <button id="reset" class="danger">Herbeginnen</button>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <div id="playerModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <button class="modal-back" id="modalBack" style="display:none">‹ Terug</button>
+        <img id="modalLogo" alt="" />
+        <div class="modal-title" id="modalTitle"></div>
+        <button class="modal-x" id="modalClose" aria-label="Sluiten">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
 
 <script>
   let scoreA = 0, scoreB = 0, quarter = 1;
@@ -286,6 +352,609 @@
     { id: 'bavi-vilvoorde', logo: 'logos/bavi-vilvoorde.png', names: ['bavi vilvoorde', 'basketball vilvoorde', 'bavi', 'vilvoorde'] }
   ];
 
+  // --- NBA rosters + per-game stats (static 2025-26 snapshot, frozen values). ---
+  // Keyed by the same team id as TEAMS above. Stats: gp games, mpg minutes,
+  // ppg/rpg/apg/spg/bpg per game, fg/tp/ft shooting percentages.
+  const ROSTERS = {
+'atl': {
+  city: 'Atlanta', name: 'Hawks',
+  players: [
+    { n:'Trae Young', no:11, pos:'PG', gp:72, mpg:35.5, ppg:23.5, rpg:2.9, apg:11.0, spg:1.2, bpg:0.1, fg:42.0, tp:35.5, ft:87.0 },
+    { n:'Jalen Johnson', no:1, pos:'PF', gp:70, mpg:34.0, ppg:19.5, rpg:9.5, apg:5.0, spg:1.5, bpg:1.0, fg:50.5, tp:34.0, ft:73.0 },
+    { n:'Dyson Daniels', no:5, pos:'SG', gp:74, mpg:33.0, ppg:13.5, rpg:5.8, apg:5.2, spg:2.8, bpg:0.8, fg:48.0, tp:34.0, ft:74.0 },
+    { n:'Zaccharie Risacher', no:10, pos:'SF', gp:75, mpg:31.0, ppg:14.5, rpg:4.2, apg:2.0, spg:0.9, bpg:0.6, fg:46.0, tp:36.0, ft:76.0 },
+    { n:'Kristaps Porzingis', no:8, pos:'C', gp:60, mpg:28.0, ppg:18.0, rpg:6.8, apg:2.0, spg:0.7, bpg:1.8, fg:48.0, tp:37.0, ft:84.0 },
+    { n:'Onyeka Okongwu', no:17, pos:'C', gp:72, mpg:28.0, ppg:13.5, rpg:8.5, apg:2.2, spg:0.9, bpg:1.3, fg:56.0, tp:34.0, ft:73.0 },
+    { n:'Nickeil Alexander-Walker', no:9, pos:'SG', gp:73, mpg:27.0, ppg:11.5, rpg:3.2, apg:3.0, spg:1.1, bpg:0.4, fg:44.0, tp:38.0, ft:82.0 },
+    { n:'Luke Kennard', no:18, pos:'SG', gp:65, mpg:20.0, ppg:9.0, rpg:2.2, apg:2.5, spg:0.6, bpg:0.1, fg:45.0, tp:43.0, ft:88.0 },
+    { n:'Vit Krejci', no:27, pos:'SF', gp:68, mpg:19.0, ppg:7.0, rpg:3.0, apg:2.2, spg:0.8, bpg:0.3, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Mouhamed Gueye', no:18, pos:'PF', gp:60, mpg:16.0, ppg:6.0, rpg:5.0, apg:1.0, spg:0.6, bpg:0.7, fg:50.0, tp:30.0, ft:70.0 },
+    { n:'Terance Mann', no:14, pos:'SG', gp:62, mpg:15.0, ppg:6.5, rpg:2.5, apg:1.8, spg:0.6, bpg:0.2, fg:44.0, tp:33.0, ft:78.0 },
+    { n:'Asa Newell', no:14, pos:'PF', gp:55, mpg:13.0, ppg:5.5, rpg:4.0, apg:0.8, spg:0.5, bpg:0.6, fg:52.0, tp:30.0, ft:68.0 },
+    { n:'Caris LeVert', no:3, pos:'SG', gp:60, mpg:18.0, ppg:9.0, rpg:2.8, apg:3.2, spg:0.8, bpg:0.2, fg:43.0, tp:33.0, ft:79.0 },
+    { n:'Keaton Wallace', no:25, pos:'PG', gp:50, mpg:12.0, ppg:4.5, rpg:1.8, apg:2.5, spg:0.5, bpg:0.1, fg:42.0, tp:35.0, ft:80.0 },
+    { n:'N\'Faly Dante', no:1, pos:'C', gp:40, mpg:9.0, ppg:3.5, rpg:3.2, apg:0.4, spg:0.3, bpg:0.5, fg:58.0, tp:0.0, ft:60.0 }
+  ]
+},
+'bos': {
+  city: 'Boston', name: 'Celtics',
+  players: [
+    { n:'Jayson Tatum', no:0, pos:'SF', gp:50, mpg:35.0, ppg:26.5, rpg:8.5, apg:5.5, spg:1.0, bpg:0.6, fg:45.5, tp:36.0, ft:83.0 },
+    { n:'Jaylen Brown', no:7, pos:'SG', gp:68, mpg:35.0, ppg:24.0, rpg:6.0, apg:4.5, spg:1.2, bpg:0.4, fg:47.0, tp:33.0, ft:77.0 },
+    { n:'Derrick White', no:9, pos:'PG', gp:72, mpg:33.0, ppg:17.5, rpg:4.2, apg:5.5, spg:1.0, bpg:1.0, fg:44.0, tp:38.0, ft:88.0 },
+    { n:'Payton Pritchard', no:11, pos:'PG', gp:75, mpg:30.0, ppg:16.0, rpg:4.0, apg:4.5, spg:0.9, bpg:0.2, fg:45.0, tp:40.5, ft:82.0 },
+    { n:'Anfernee Simons', no:1, pos:'SG', gp:70, mpg:28.0, ppg:16.5, rpg:2.8, apg:4.0, spg:0.8, bpg:0.2, fg:43.0, tp:38.0, ft:89.0 },
+    { n:'Sam Hauser', no:30, pos:'SF', gp:72, mpg:25.0, ppg:9.5, rpg:3.5, apg:1.2, spg:0.6, bpg:0.3, fg:44.0, tp:42.0, ft:85.0 },
+    { n:'Neemias Queta', no:88, pos:'C', gp:70, mpg:24.0, ppg:9.0, rpg:7.5, apg:1.2, spg:0.5, bpg:1.3, fg:60.0, tp:0.0, ft:68.0 },
+    { n:'Jordan Walsh', no:27, pos:'SF', gp:60, mpg:18.0, ppg:6.5, rpg:3.0, apg:1.2, spg:0.7, bpg:0.4, fg:44.0, tp:34.0, ft:74.0 },
+    { n:'Baylor Scheierman', no:55, pos:'SG', gp:62, mpg:18.0, ppg:7.0, rpg:3.0, apg:2.0, spg:0.5, bpg:0.2, fg:43.0, tp:38.0, ft:82.0 },
+    { n:'Luka Garza', no:55, pos:'C', gp:58, mpg:15.0, ppg:7.5, rpg:4.5, apg:0.8, spg:0.3, bpg:0.4, fg:55.0, tp:33.0, ft:78.0 },
+    { n:'Josh Minott', no:8, pos:'PF', gp:55, mpg:14.0, ppg:5.5, rpg:3.2, apg:0.9, spg:0.6, bpg:0.5, fg:50.0, tp:33.0, ft:72.0 },
+    { n:'Xavier Tillman', no:26, pos:'PF', gp:50, mpg:13.0, ppg:4.0, rpg:3.5, apg:1.0, spg:0.6, bpg:0.5, fg:50.0, tp:30.0, ft:70.0 },
+    { n:'Hugo Gonzalez', no:28, pos:'SF', gp:48, mpg:12.0, ppg:4.5, rpg:2.5, apg:1.2, spg:0.6, bpg:0.3, fg:43.0, tp:32.0, ft:72.0 },
+    { n:'Chris Boucher', no:25, pos:'PF', gp:55, mpg:14.0, ppg:6.0, rpg:4.0, apg:0.6, spg:0.4, bpg:0.7, fg:48.0, tp:34.0, ft:76.0 },
+    { n:'JD Davison', no:20, pos:'PG', gp:45, mpg:10.0, ppg:4.0, rpg:1.8, apg:2.5, spg:0.6, bpg:0.1, fg:42.0, tp:32.0, ft:75.0 }
+  ]
+},
+'bkn': {
+  city: 'Brooklyn', name: 'Nets',
+  players: [
+    { n:'Cam Thomas', no:24, pos:'SG', gp:65, mpg:33.0, ppg:23.0, rpg:3.5, apg:4.0, spg:0.9, bpg:0.3, fg:43.0, tp:35.0, ft:86.0 },
+    { n:'Michael Porter Jr.', no:1, pos:'SF', gp:68, mpg:32.0, ppg:18.5, rpg:8.0, apg:2.2, spg:0.7, bpg:0.5, fg:48.0, tp:39.0, ft:79.0 },
+    { n:'Nic Claxton', no:33, pos:'C', gp:70, mpg:30.0, ppg:12.5, rpg:10.0, apg:2.5, spg:0.9, bpg:1.6, fg:60.0, tp:25.0, ft:55.0 },
+    { n:'Egor Demin', no:8, pos:'PG', gp:72, mpg:27.0, ppg:11.0, rpg:3.8, apg:6.0, spg:1.0, bpg:0.4, fg:43.0, tp:34.0, ft:78.0 },
+    { n:'Terance Mann', no:14, pos:'SG', gp:68, mpg:26.0, ppg:9.5, rpg:3.5, apg:3.0, spg:1.0, bpg:0.3, fg:45.0, tp:35.0, ft:78.0 },
+    { n:'Ziaire Williams', no:8, pos:'SF', gp:65, mpg:25.0, ppg:11.0, rpg:4.5, apg:2.0, spg:0.8, bpg:0.4, fg:45.0, tp:36.0, ft:78.0 },
+    { n:'Day\'Ron Sharpe', no:20, pos:'C', gp:66, mpg:20.0, ppg:9.0, rpg:7.5, apg:1.5, spg:0.7, bpg:0.9, fg:55.0, tp:25.0, ft:68.0 },
+    { n:'Nolan Traore', no:7, pos:'PG', gp:64, mpg:22.0, ppg:9.0, rpg:2.8, apg:5.0, spg:0.9, bpg:0.2, fg:42.0, tp:32.0, ft:76.0 },
+    { n:'Noah Clowney', no:21, pos:'PF', gp:68, mpg:22.0, ppg:10.0, rpg:5.0, apg:1.2, spg:0.6, bpg:0.8, fg:44.0, tp:36.0, ft:75.0 },
+    { n:'Drake Powell', no:20, pos:'SG', gp:60, mpg:18.0, ppg:6.5, rpg:2.8, apg:1.5, spg:0.7, bpg:0.4, fg:44.0, tp:35.0, ft:74.0 },
+    { n:'Danny Wolf', no:30, pos:'PF', gp:58, mpg:16.0, ppg:6.0, rpg:4.5, apg:2.0, spg:0.5, bpg:0.6, fg:48.0, tp:32.0, ft:70.0 },
+    { n:'Tyrese Martin', no:12, pos:'SF', gp:60, mpg:18.0, ppg:7.5, rpg:3.5, apg:1.8, spg:0.7, bpg:0.2, fg:44.0, tp:37.0, ft:78.0 },
+    { n:'Jalen Wilson', no:22, pos:'SF', gp:62, mpg:17.0, ppg:7.0, rpg:3.0, apg:1.5, spg:0.5, bpg:0.2, fg:43.0, tp:34.0, ft:76.0 },
+    { n:'Dariq Whitehead', no:0, pos:'SG', gp:50, mpg:14.0, ppg:5.5, rpg:1.8, apg:1.2, spg:0.4, bpg:0.2, fg:42.0, tp:36.0, ft:78.0 },
+    { n:'Ben Saraf', no:11, pos:'PG', gp:48, mpg:12.0, ppg:4.5, rpg:1.5, apg:3.0, spg:0.5, bpg:0.1, fg:41.0, tp:31.0, ft:74.0 }
+  ]
+},
+'cha': {
+  city: 'Charlotte', name: 'Hornets',
+  players: [
+    { n:'LaMelo Ball', no:1, pos:'PG', gp:55, mpg:33.0, ppg:25.0, rpg:5.5, apg:8.5, spg:1.5, bpg:0.3, fg:42.0, tp:34.0, ft:84.0 },
+    { n:'Brandon Miller', no:24, pos:'SF', gp:60, mpg:33.0, ppg:21.0, rpg:5.0, apg:4.0, spg:1.0, bpg:0.5, fg:44.0, tp:36.0, ft:82.0 },
+    { n:'Miles Bridges', no:0, pos:'PF', gp:68, mpg:33.0, ppg:19.0, rpg:7.0, apg:3.5, spg:0.9, bpg:0.6, fg:45.0, tp:33.0, ft:80.0 },
+    { n:'Kon Knueppel', no:7, pos:'SG', gp:72, mpg:30.0, ppg:14.0, rpg:3.5, apg:3.0, spg:0.8, bpg:0.2, fg:45.0, tp:39.0, ft:88.0 },
+    { n:'Collin Sexton', no:2, pos:'PG', gp:70, mpg:28.0, ppg:15.5, rpg:2.8, apg:4.5, spg:0.8, bpg:0.1, fg:46.0, tp:39.0, ft:85.0 },
+    { n:'Ryan Kalkbrenner', no:11, pos:'C', gp:72, mpg:26.0, ppg:10.0, rpg:7.5, apg:1.2, spg:0.5, bpg:1.7, fg:62.0, tp:30.0, ft:70.0 },
+    { n:'Tre Mann', no:23, pos:'PG', gp:60, mpg:22.0, ppg:11.0, rpg:2.8, apg:4.0, spg:0.9, bpg:0.2, fg:43.0, tp:36.0, ft:84.0 },
+    { n:'Josh Green', no:14, pos:'SG', gp:65, mpg:24.0, ppg:8.5, rpg:3.0, apg:2.2, spg:1.0, bpg:0.2, fg:46.0, tp:38.0, ft:78.0 },
+    { n:'Moussa Diabate', no:45, pos:'C', gp:68, mpg:20.0, ppg:7.0, rpg:7.0, apg:1.0, spg:0.8, bpg:0.8, fg:58.0, tp:0.0, ft:62.0 },
+    { n:'Grant Williams', no:2, pos:'PF', gp:55, mpg:20.0, ppg:7.5, rpg:4.0, apg:1.8, spg:0.7, bpg:0.4, fg:45.0, tp:37.0, ft:82.0 },
+    { n:'Sion James', no:5, pos:'SG', gp:62, mpg:18.0, ppg:6.0, rpg:2.8, apg:2.0, spg:0.8, bpg:0.2, fg:46.0, tp:35.0, ft:74.0 },
+    { n:'Liam McNeeley', no:9, pos:'SF', gp:58, mpg:18.0, ppg:7.0, rpg:3.2, apg:1.5, spg:0.5, bpg:0.2, fg:43.0, tp:35.0, ft:80.0 },
+    { n:'DaQuan Jeffries', no:0, pos:'SF', gp:50, mpg:14.0, ppg:4.5, rpg:2.0, apg:1.0, spg:0.6, bpg:0.2, fg:44.0, tp:36.0, ft:76.0 },
+    { n:'Mason Plumlee', no:24, pos:'C', gp:55, mpg:15.0, ppg:5.0, rpg:5.5, apg:2.5, spg:0.5, bpg:0.5, fg:56.0, tp:0.0, ft:66.0 },
+    { n:'KJ Simpson', no:25, pos:'PG', gp:45, mpg:11.0, ppg:4.0, rpg:1.8, apg:2.0, spg:0.5, bpg:0.1, fg:42.0, tp:33.0, ft:80.0 }
+  ]
+},
+'chi': {
+  city: 'Chicago', name: 'Bulls',
+  players: [
+    { n:'Josh Giddey', no:3, pos:'PG', gp:70, mpg:34.0, ppg:18.0, rpg:9.0, apg:8.5, spg:1.3, bpg:0.6, fg:48.0, tp:37.0, ft:80.0 },
+    { n:'Coby White', no:0, pos:'SG', gp:68, mpg:33.0, ppg:20.0, rpg:3.8, apg:4.5, spg:0.9, bpg:0.2, fg:45.0, tp:38.0, ft:88.0 },
+    { n:'Nikola Vucevic', no:9, pos:'C', gp:70, mpg:30.0, ppg:18.0, rpg:10.0, apg:3.0, spg:0.7, bpg:0.7, fg:53.0, tp:39.0, ft:78.0 },
+    { n:'Matas Buzelis', no:14, pos:'PF', gp:72, mpg:30.0, ppg:14.0, rpg:5.5, apg:1.8, spg:0.8, bpg:1.2, fg:47.0, tp:36.0, ft:78.0 },
+    { n:'Patrick Williams', no:44, pos:'PF', gp:65, mpg:28.0, ppg:10.5, rpg:4.5, apg:1.5, spg:0.9, bpg:0.8, fg:46.0, tp:37.0, ft:78.0 },
+    { n:'Ayo Dosunmu', no:12, pos:'SG', gp:68, mpg:27.0, ppg:11.5, rpg:3.5, apg:4.0, spg:1.0, bpg:0.4, fg:48.0, tp:35.0, ft:80.0 },
+    { n:'Kevin Huerter', no:13, pos:'SG', gp:66, mpg:24.0, ppg:9.5, rpg:3.0, apg:2.8, spg:0.8, bpg:0.2, fg:44.0, tp:38.0, ft:82.0 },
+    { n:'Tre Jones', no:20, pos:'PG', gp:68, mpg:22.0, ppg:8.5, rpg:2.8, apg:4.5, spg:1.0, bpg:0.1, fg:47.0, tp:36.0, ft:80.0 },
+    { n:'Jalen Smith', no:7, pos:'C', gp:64, mpg:18.0, ppg:8.0, rpg:6.0, apg:1.0, spg:0.5, bpg:0.8, fg:52.0, tp:35.0, ft:76.0 },
+    { n:'Isaac Okoro', no:35, pos:'SF', gp:62, mpg:20.0, ppg:7.0, rpg:3.0, apg:1.5, spg:0.8, bpg:0.3, fg:47.0, tp:37.0, ft:74.0 },
+    { n:'Noa Essengue', no:11, pos:'PF', gp:60, mpg:18.0, ppg:7.5, rpg:4.5, apg:1.2, spg:0.7, bpg:0.6, fg:46.0, tp:32.0, ft:72.0 },
+    { n:'Dalen Terry', no:25, pos:'SF', gp:58, mpg:16.0, ppg:5.5, rpg:2.8, apg:2.2, spg:0.7, bpg:0.2, fg:45.0, tp:34.0, ft:74.0 },
+    { n:'Julian Phillips', no:15, pos:'SF', gp:55, mpg:15.0, ppg:5.0, rpg:3.0, apg:1.0, spg:0.6, bpg:0.4, fg:46.0, tp:35.0, ft:72.0 },
+    { n:'Zach Collins', no:23, pos:'C', gp:50, mpg:14.0, ppg:6.0, rpg:4.5, apg:1.8, spg:0.4, bpg:0.6, fg:50.0, tp:34.0, ft:78.0 },
+    { n:'Yuki Kawamura', no:33, pos:'PG', gp:40, mpg:10.0, ppg:3.5, rpg:1.5, apg:3.0, spg:0.6, bpg:0.0, fg:40.0, tp:33.0, ft:82.0 }
+  ]
+},
+'cle': {
+  city: 'Cleveland', name: 'Cavaliers',
+  players: [
+    { n:'Donovan Mitchell', no:45, pos:'SG', gp:70, mpg:34.0, ppg:28.0, rpg:5.0, apg:5.0, spg:1.4, bpg:0.4, fg:46.0, tp:37.0, ft:84.0 },
+    { n:'Darius Garland', no:10, pos:'PG', gp:65, mpg:32.0, ppg:20.0, rpg:2.8, apg:7.0, spg:1.2, bpg:0.1, fg:46.0, tp:38.0, ft:88.0 },
+    { n:'Evan Mobley', no:4, pos:'PF', gp:72, mpg:33.0, ppg:18.5, rpg:9.5, apg:3.5, spg:0.9, bpg:1.7, fg:55.0, tp:35.0, ft:75.0 },
+    { n:'Jarrett Allen', no:31, pos:'C', gp:72, mpg:30.0, ppg:13.5, rpg:9.8, apg:2.0, spg:0.8, bpg:1.0, fg:68.0, tp:0.0, ft:72.0 },
+    { n:'De\'Andre Hunter', no:12, pos:'SF', gp:70, mpg:28.0, ppg:15.0, rpg:4.0, apg:1.5, spg:0.8, bpg:0.4, fg:47.0, tp:39.0, ft:82.0 },
+    { n:'Max Strus', no:1, pos:'SF', gp:62, mpg:27.0, ppg:11.0, rpg:4.5, apg:3.5, spg:0.8, bpg:0.3, fg:43.0, tp:37.0, ft:80.0 },
+    { n:'Sam Merrill', no:5, pos:'SG', gp:70, mpg:23.0, ppg:9.5, rpg:2.5, apg:2.0, spg:0.7, bpg:0.2, fg:42.0, tp:40.0, ft:88.0 },
+    { n:'Lonzo Ball', no:2, pos:'PG', gp:55, mpg:22.0, ppg:8.0, rpg:3.5, apg:4.0, spg:1.5, bpg:0.5, fg:42.0, tp:35.0, ft:75.0 },
+    { n:'Dean Wade', no:32, pos:'PF', gp:60, mpg:18.0, ppg:5.5, rpg:3.5, apg:1.5, spg:0.6, bpg:0.4, fg:44.0, tp:38.0, ft:78.0 },
+    { n:'Craig Porter Jr.', no:9, pos:'PG', gp:58, mpg:16.0, ppg:6.0, rpg:2.5, apg:3.0, spg:0.8, bpg:0.3, fg:48.0, tp:33.0, ft:78.0 },
+    { n:'Jaylon Tyson', no:24, pos:'SF', gp:60, mpg:17.0, ppg:7.0, rpg:3.5, apg:2.2, spg:0.7, bpg:0.3, fg:44.0, tp:35.0, ft:78.0 },
+    { n:'Larry Nance Jr.', no:22, pos:'PF', gp:55, mpg:16.0, ppg:5.5, rpg:4.5, apg:2.0, spg:0.8, bpg:0.5, fg:55.0, tp:34.0, ft:72.0 },
+    { n:'Tristan Thompson', no:13, pos:'C', gp:45, mpg:10.0, ppg:3.0, rpg:3.5, apg:0.6, spg:0.3, bpg:0.3, fg:54.0, tp:0.0, ft:60.0 },
+    { n:'Nae\'Qwan Tomlin', no:30, pos:'PF', gp:48, mpg:12.0, ppg:4.5, rpg:3.0, apg:0.8, spg:0.5, bpg:0.4, fg:48.0, tp:32.0, ft:70.0 },
+    { n:'Thomas Bryant', no:21, pos:'C', gp:40, mpg:9.0, ppg:4.0, rpg:2.8, apg:0.6, spg:0.3, bpg:0.4, fg:56.0, tp:33.0, ft:74.0 }
+  ]
+},
+'dal': {
+  city: 'Dallas', name: 'Mavericks',
+  players: [
+    { n:'Anthony Davis', no:3, pos:'PF', gp:65, mpg:34.5, ppg:24.5, rpg:11.5, apg:3.4, spg:1.2, bpg:2.1, fg:51.5, tp:30.0, ft:78.0 },
+    { n:'Cooper Flagg', no:32, pos:'SF', gp:75, mpg:33.0, ppg:17.5, rpg:7.5, apg:4.0, spg:1.5, bpg:1.2, fg:46.0, tp:33.0, ft:78.0 },
+    { n:'Kyrie Irving', no:11, pos:'PG', gp:40, mpg:34.0, ppg:24.0, rpg:5.0, apg:5.5, spg:1.3, bpg:0.5, fg:47.0, tp:39.0, ft:90.0 },
+    { n:'P.J. Washington', no:25, pos:'PF', gp:70, mpg:31.0, ppg:14.5, rpg:7.0, apg:2.5, spg:1.0, bpg:0.8, fg:46.0, tp:36.0, ft:74.0 },
+    { n:'Daniel Gafford', no:21, pos:'C', gp:68, mpg:24.0, ppg:12.0, rpg:7.0, apg:1.5, spg:0.6, bpg:1.8, fg:70.0, tp:0.0, ft:70.0 },
+    { n:'Dereck Lively II', no:2, pos:'C', gp:55, mpg:23.0, ppg:9.0, rpg:8.0, apg:1.8, spg:0.6, bpg:1.5, fg:73.0, tp:0.0, ft:65.0 },
+    { n:'Klay Thompson', no:31, pos:'SG', gp:68, mpg:27.0, ppg:13.5, rpg:3.3, apg:2.0, spg:0.7, bpg:0.5, fg:43.0, tp:39.0, ft:88.0 },
+    { n:'D\'Angelo Russell', no:1, pos:'PG', gp:65, mpg:26.0, ppg:13.0, rpg:3.0, apg:5.5, spg:0.9, bpg:0.3, fg:42.0, tp:35.0, ft:82.0 },
+    { n:'Naji Marshall', no:13, pos:'SF', gp:70, mpg:25.0, ppg:10.0, rpg:4.5, apg:3.0, spg:1.0, bpg:0.4, fg:47.0, tp:34.0, ft:76.0 },
+    { n:'Max Christie', no:0, pos:'SG', gp:70, mpg:26.0, ppg:11.0, rpg:3.5, apg:2.5, spg:0.9, bpg:0.4, fg:44.0, tp:38.0, ft:84.0 },
+    { n:'Caleb Martin', no:16, pos:'SF', gp:60, mpg:22.0, ppg:8.5, rpg:4.0, apg:1.8, spg:0.8, bpg:0.4, fg:44.0, tp:36.0, ft:78.0 },
+    { n:'Dante Exum', no:0, pos:'PG', gp:45, mpg:18.0, ppg:6.0, rpg:2.0, apg:3.0, spg:0.7, bpg:0.2, fg:46.0, tp:37.0, ft:80.0 },
+    { n:'Brandon Williams', no:24, pos:'PG', gp:50, mpg:16.0, ppg:7.0, rpg:1.8, apg:3.2, spg:0.6, bpg:0.1, fg:42.0, tp:34.0, ft:83.0 },
+    { n:'Olivier-Maxence Prosper', no:18, pos:'PF', gp:48, mpg:14.0, ppg:5.0, rpg:3.0, apg:1.0, spg:0.5, bpg:0.4, fg:45.0, tp:33.0, ft:72.0 },
+    { n:'Dwight Powell', no:7, pos:'C', gp:45, mpg:10.0, ppg:3.5, rpg:2.5, apg:0.8, spg:0.3, bpg:0.3, fg:60.0, tp:25.0, ft:70.0 }
+  ]
+},
+'den': {
+  city: 'Denver', name: 'Nuggets',
+  players: [
+    { n:'Nikola Jokic', no:15, pos:'C', gp:72, mpg:35.0, ppg:27.5, rpg:12.5, apg:9.5, spg:1.6, bpg:0.7, fg:58.0, tp:36.0, ft:81.0 },
+    { n:'Jamal Murray', no:27, pos:'PG', gp:68, mpg:33.0, ppg:21.0, rpg:4.0, apg:6.5, spg:1.2, bpg:0.4, fg:47.0, tp:38.0, ft:87.0 },
+    { n:'Aaron Gordon', no:50, pos:'PF', gp:65, mpg:30.0, ppg:14.5, rpg:6.0, apg:3.5, spg:0.8, bpg:0.6, fg:55.0, tp:38.0, ft:70.0 },
+    { n:'Michael Porter Jr.', no:1, pos:'SF', gp:60, mpg:30.0, ppg:17.0, rpg:7.0, apg:1.8, spg:0.8, bpg:0.6, fg:48.0, tp:40.0, ft:80.0 },
+    { n:'Christian Braun', no:0, pos:'SG', gp:75, mpg:30.0, ppg:13.0, rpg:5.0, apg:2.8, spg:1.1, bpg:0.5, fg:50.0, tp:36.0, ft:78.0 },
+    { n:'Cameron Johnson', no:2, pos:'SF', gp:70, mpg:28.0, ppg:14.0, rpg:4.0, apg:2.5, spg:1.0, bpg:0.4, fg:46.0, tp:39.0, ft:88.0 },
+    { n:'Tim Hardaway Jr.', no:10, pos:'SG', gp:70, mpg:22.0, ppg:10.0, rpg:2.5, apg:1.5, spg:0.6, bpg:0.2, fg:42.0, tp:37.0, ft:84.0 },
+    { n:'Peyton Watson', no:8, pos:'SF', gp:70, mpg:24.0, ppg:9.0, rpg:4.0, apg:1.5, spg:0.8, bpg:1.0, fg:46.0, tp:34.0, ft:72.0 },
+    { n:'Jonas Valanciunas', no:17, pos:'C', gp:65, mpg:18.0, ppg:9.0, rpg:7.0, apg:1.5, spg:0.4, bpg:0.6, fg:55.0, tp:30.0, ft:78.0 },
+    { n:'Bruce Brown', no:11, pos:'SG', gp:60, mpg:20.0, ppg:7.5, rpg:3.5, apg:2.8, spg:0.9, bpg:0.3, fg:45.0, tp:33.0, ft:75.0 },
+    { n:'Julian Strawther', no:3, pos:'SG', gp:58, mpg:16.0, ppg:7.0, rpg:2.0, apg:1.2, spg:0.5, bpg:0.2, fg:43.0, tp:36.0, ft:80.0 },
+    { n:'Zeke Nnaji', no:22, pos:'PF', gp:45, mpg:12.0, ppg:4.0, rpg:3.0, apg:0.6, spg:0.3, bpg:0.4, fg:52.0, tp:33.0, ft:70.0 },
+    { n:'Dario Saric', no:36, pos:'PF', gp:48, mpg:12.0, ppg:5.0, rpg:3.0, apg:1.5, spg:0.4, bpg:0.2, fg:45.0, tp:35.0, ft:80.0 },
+    { n:'DaRon Holmes II', no:25, pos:'PF', gp:40, mpg:12.0, ppg:5.0, rpg:3.5, apg:0.8, spg:0.4, bpg:0.7, fg:50.0, tp:32.0, ft:72.0 },
+    { n:'Hunter Tyson', no:5, pos:'SF', gp:40, mpg:10.0, ppg:3.5, rpg:2.5, apg:0.8, spg:0.3, bpg:0.2, fg:44.0, tp:36.0, ft:78.0 }
+  ]
+},
+'det': {
+  city: 'Detroit', name: 'Pistons',
+  players: [
+    { n:'Cade Cunningham', no:2, pos:'PG', gp:70, mpg:35.0, ppg:25.0, rpg:6.5, apg:9.0, spg:1.0, bpg:0.8, fg:46.0, tp:36.0, ft:84.0 },
+    { n:'Jalen Duren', no:0, pos:'C', gp:72, mpg:30.0, ppg:15.0, rpg:11.0, apg:2.5, spg:0.7, bpg:1.0, fg:62.0, tp:0.0, ft:70.0 },
+    { n:'Jaden Ivey', no:23, pos:'SG', gp:60, mpg:30.0, ppg:18.0, rpg:4.0, apg:4.5, spg:1.0, bpg:0.4, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Tobias Harris', no:12, pos:'PF', gp:70, mpg:30.0, ppg:13.5, rpg:6.0, apg:3.0, spg:0.9, bpg:0.5, fg:47.0, tp:36.0, ft:80.0 },
+    { n:'Ausar Thompson', no:9, pos:'SF', gp:68, mpg:28.0, ppg:11.0, rpg:6.5, apg:3.5, spg:1.5, bpg:1.2, fg:50.0, tp:30.0, ft:68.0 },
+    { n:'Duncan Robinson', no:8, pos:'SG', gp:70, mpg:26.0, ppg:11.0, rpg:2.5, apg:1.8, spg:0.7, bpg:0.2, fg:42.0, tp:39.0, ft:82.0 },
+    { n:'Malik Beasley', no:5, pos:'SG', gp:72, mpg:26.0, ppg:13.0, rpg:2.8, apg:1.5, spg:0.7, bpg:0.1, fg:43.0, tp:41.0, ft:80.0 },
+    { n:'Isaiah Stewart', no:28, pos:'C', gp:65, mpg:22.0, ppg:7.0, rpg:6.5, apg:1.2, spg:0.5, bpg:1.3, fg:50.0, tp:34.0, ft:75.0 },
+    { n:'Marcus Sasser', no:25, pos:'PG', gp:60, mpg:18.0, ppg:8.0, rpg:2.0, apg:3.0, spg:0.8, bpg:0.1, fg:43.0, tp:36.0, ft:82.0 },
+    { n:'Ron Holland II', no:0, pos:'SF', gp:60, mpg:18.0, ppg:7.5, rpg:4.0, apg:1.8, spg:1.0, bpg:0.5, fg:46.0, tp:30.0, ft:72.0 },
+    { n:'Paul Reed', no:4, pos:'C', gp:50, mpg:14.0, ppg:5.0, rpg:4.5, apg:1.0, spg:0.7, bpg:0.7, fg:55.0, tp:28.0, ft:70.0 },
+    { n:'Bobi Klintman', no:21, pos:'PF', gp:40, mpg:12.0, ppg:4.0, rpg:3.0, apg:0.8, spg:0.4, bpg:0.4, fg:44.0, tp:34.0, ft:74.0 },
+    { n:'Daniss Jenkins', no:13, pos:'PG', gp:35, mpg:10.0, ppg:3.5, rpg:1.5, apg:2.0, spg:0.5, bpg:0.1, fg:42.0, tp:33.0, ft:78.0 },
+    { n:'Wendell Moore Jr.', no:1, pos:'SG', gp:40, mpg:10.0, ppg:3.0, rpg:1.8, apg:1.2, spg:0.5, bpg:0.2, fg:44.0, tp:35.0, ft:76.0 }
+  ]
+},
+'gs': {
+  city: 'Golden State', name: 'Warriors',
+  players: [
+    { n:'Stephen Curry', no:30, pos:'PG', gp:68, mpg:33.0, ppg:25.0, rpg:4.5, apg:6.0, spg:1.1, bpg:0.4, fg:45.0, tp:40.0, ft:92.0 },
+    { n:'Jimmy Butler', no:10, pos:'SF', gp:65, mpg:33.0, ppg:18.0, rpg:5.5, apg:5.0, spg:1.5, bpg:0.5, fg:50.0, tp:32.0, ft:84.0 },
+    { n:'Draymond Green', no:23, pos:'PF', gp:65, mpg:30.0, ppg:9.0, rpg:6.0, apg:6.0, spg:1.4, bpg:1.0, fg:48.0, tp:34.0, ft:72.0 },
+    { n:'Brandin Podziemski', no:2, pos:'SG', gp:72, mpg:28.0, ppg:12.0, rpg:5.0, apg:4.5, spg:1.0, bpg:0.3, fg:46.0, tp:37.0, ft:80.0 },
+    { n:'Buddy Hield', no:7, pos:'SG', gp:72, mpg:26.0, ppg:12.0, rpg:3.5, apg:2.0, spg:0.9, bpg:0.3, fg:43.0, tp:39.0, ft:84.0 },
+    { n:'Jonathan Kuminga', no:0, pos:'PF', gp:65, mpg:26.0, ppg:15.0, rpg:5.0, apg:2.2, spg:0.8, bpg:0.6, fg:48.0, tp:32.0, ft:70.0 },
+    { n:'Moses Moody', no:4, pos:'SG', gp:70, mpg:25.0, ppg:10.0, rpg:3.5, apg:1.5, spg:0.8, bpg:0.5, fg:44.0, tp:37.0, ft:82.0 },
+    { n:'Quinten Post', no:21, pos:'C', gp:60, mpg:20.0, ppg:8.0, rpg:5.0, apg:1.5, spg:0.4, bpg:0.7, fg:50.0, tp:38.0, ft:78.0 },
+    { n:'Gary Payton II', no:0, pos:'PG', gp:55, mpg:17.0, ppg:6.0, rpg:3.0, apg:1.5, spg:1.2, bpg:0.4, fg:55.0, tp:33.0, ft:70.0 },
+    { n:'Trayce Jackson-Davis', no:32, pos:'C', gp:60, mpg:18.0, ppg:7.0, rpg:6.0, apg:1.5, spg:0.5, bpg:1.0, fg:65.0, tp:0.0, ft:68.0 },
+    { n:'De\'Anthony Melton', no:8, pos:'PG', gp:50, mpg:20.0, ppg:8.0, rpg:3.0, apg:3.0, spg:1.3, bpg:0.4, fg:43.0, tp:36.0, ft:80.0 },
+    { n:'Kevon Looney', no:5, pos:'C', gp:60, mpg:14.0, ppg:4.0, rpg:6.0, apg:1.5, spg:0.5, bpg:0.4, fg:58.0, tp:0.0, ft:62.0 },
+    { n:'Pat Spencer', no:61, pos:'PG', gp:40, mpg:10.0, ppg:3.5, rpg:1.8, apg:2.0, spg:0.5, bpg:0.1, fg:46.0, tp:33.0, ft:78.0 },
+    { n:'Gui Santos', no:15, pos:'SF', gp:45, mpg:12.0, ppg:5.0, rpg:3.0, apg:1.5, spg:0.5, bpg:0.2, fg:46.0, tp:35.0, ft:76.0 },
+    { n:'Jackson Rowe', no:25, pos:'PF', gp:30, mpg:8.0, ppg:2.5, rpg:2.0, apg:0.6, spg:0.3, bpg:0.2, fg:45.0, tp:32.0, ft:72.0 }
+  ]
+},
+'hou': {
+  city: 'Houston', name: 'Rockets',
+  players: [
+    { n:'Kevin Durant', no:7, pos:'SF', gp:65, mpg:34.0, ppg:26.0, rpg:6.5, apg:4.5, spg:0.9, bpg:1.2, fg:52.0, tp:41.0, ft:85.0 },
+    { n:'Alperen Sengun', no:28, pos:'C', gp:72, mpg:33.0, ppg:20.0, rpg:10.5, apg:5.5, spg:1.2, bpg:0.8, fg:54.0, tp:30.0, ft:72.0 },
+    { n:'Amen Thompson', no:1, pos:'SF', gp:72, mpg:32.0, ppg:16.0, rpg:8.0, apg:4.0, spg:1.5, bpg:1.0, fg:52.0, tp:30.0, ft:70.0 },
+    { n:'Jalen Green', no:4, pos:'SG', gp:68, mpg:31.0, ppg:20.0, rpg:4.5, apg:3.5, spg:0.9, bpg:0.4, fg:43.0, tp:36.0, ft:80.0 },
+    { n:'Fred VanVleet', no:5, pos:'PG', gp:55, mpg:32.0, ppg:14.0, rpg:3.5, apg:6.0, spg:1.6, bpg:0.4, fg:41.0, tp:37.0, ft:86.0 },
+    { n:'Dillon Brooks', no:9, pos:'SF', gp:68, mpg:28.0, ppg:13.0, rpg:3.5, apg:1.8, spg:1.0, bpg:0.4, fg:44.0, tp:38.0, ft:82.0 },
+    { n:'Steven Adams', no:12, pos:'C', gp:60, mpg:18.0, ppg:6.0, rpg:8.0, apg:1.5, spg:0.7, bpg:0.6, fg:60.0, tp:0.0, ft:55.0 },
+    { n:'Tari Eason', no:17, pos:'PF', gp:65, mpg:24.0, ppg:11.0, rpg:6.5, apg:1.5, spg:1.5, bpg:0.8, fg:48.0, tp:34.0, ft:72.0 },
+    { n:'Jabari Smith Jr.', no:10, pos:'PF', gp:65, mpg:28.0, ppg:13.0, rpg:7.5, apg:1.5, spg:0.7, bpg:0.9, fg:46.0, tp:36.0, ft:80.0 },
+    { n:'Reed Sheppard', no:15, pos:'PG', gp:65, mpg:22.0, ppg:10.0, rpg:2.8, apg:4.0, spg:1.2, bpg:0.4, fg:44.0, tp:38.0, ft:82.0 },
+    { n:'Aaron Holiday', no:0, pos:'PG', gp:55, mpg:14.0, ppg:5.0, rpg:1.5, apg:2.0, spg:0.6, bpg:0.1, fg:43.0, tp:37.0, ft:84.0 },
+    { n:'Jae\'Sean Tate', no:8, pos:'SF', gp:45, mpg:12.0, ppg:4.0, rpg:2.5, apg:1.2, spg:0.6, bpg:0.2, fg:48.0, tp:30.0, ft:72.0 },
+    { n:'Jeff Green', no:32, pos:'PF', gp:45, mpg:12.0, ppg:4.5, rpg:2.0, apg:0.8, spg:0.3, bpg:0.3, fg:46.0, tp:34.0, ft:78.0 },
+    { n:'Cam Whitmore', no:7, pos:'SF', gp:50, mpg:14.0, ppg:8.0, rpg:3.0, apg:1.0, spg:0.5, bpg:0.3, fg:45.0, tp:34.0, ft:76.0 }
+  ]
+},
+'ind': {
+  city: 'Indiana', name: 'Pacers',
+  players: [
+    { n:'Tyrese Haliburton', no:0, pos:'PG', gp:30, mpg:33.0, ppg:19.0, rpg:4.0, apg:10.0, spg:1.5, bpg:0.6, fg:47.0, tp:38.0, ft:85.0 },
+    { n:'Pascal Siakam', no:43, pos:'PF', gp:70, mpg:33.0, ppg:21.0, rpg:7.0, apg:4.0, spg:0.9, bpg:0.5, fg:51.0, tp:37.0, ft:78.0 },
+    { n:'Myles Turner', no:33, pos:'C', gp:68, mpg:30.0, ppg:16.0, rpg:7.0, apg:1.5, spg:0.7, bpg:2.0, fg:50.0, tp:38.0, ft:78.0 },
+    { n:'Andrew Nembhard', no:2, pos:'PG', gp:70, mpg:30.0, ppg:12.0, rpg:3.5, apg:5.5, spg:1.3, bpg:0.4, fg:46.0, tp:36.0, ft:82.0 },
+    { n:'Bennedict Mathurin', no:0, pos:'SG', gp:70, mpg:28.0, ppg:17.0, rpg:5.0, apg:2.0, spg:0.7, bpg:0.3, fg:46.0, tp:36.0, ft:82.0 },
+    { n:'Aaron Nesmith', no:23, pos:'SF', gp:65, mpg:28.0, ppg:12.0, rpg:4.0, apg:1.5, spg:0.9, bpg:0.4, fg:47.0, tp:42.0, ft:82.0 },
+    { n:'Obi Toppin', no:1, pos:'PF', gp:70, mpg:24.0, ppg:11.0, rpg:5.0, apg:2.0, spg:0.7, bpg:0.5, fg:54.0, tp:37.0, ft:78.0 },
+    { n:'T.J. McConnell', no:9, pos:'PG', gp:72, mpg:20.0, ppg:9.0, rpg:2.5, apg:5.0, spg:1.2, bpg:0.1, fg:50.0, tp:32.0, ft:80.0 },
+    { n:'Ben Sheppard', no:26, pos:'SG', gp:65, mpg:18.0, ppg:6.0, rpg:2.5, apg:1.5, spg:0.7, bpg:0.2, fg:44.0, tp:38.0, ft:80.0 },
+    { n:'Isaiah Jackson', no:22, pos:'C', gp:60, mpg:16.0, ppg:7.0, rpg:5.0, apg:0.8, spg:0.5, bpg:1.0, fg:62.0, tp:0.0, ft:68.0 },
+    { n:'Jarace Walker', no:5, pos:'PF', gp:60, mpg:18.0, ppg:7.0, rpg:4.0, apg:2.0, spg:0.8, bpg:0.6, fg:46.0, tp:34.0, ft:74.0 },
+    { n:'Tony Bradley', no:13, pos:'C', gp:45, mpg:12.0, ppg:4.0, rpg:4.0, apg:0.6, spg:0.3, bpg:0.5, fg:58.0, tp:0.0, ft:70.0 },
+    { n:'Quenton Jackson', no:14, pos:'SG', gp:40, mpg:12.0, ppg:5.0, rpg:1.8, apg:2.0, spg:0.6, bpg:0.2, fg:44.0, tp:34.0, ft:80.0 },
+    { n:'Johnny Furphy', no:7, pos:'SF', gp:45, mpg:12.0, ppg:5.0, rpg:2.5, apg:1.0, spg:0.4, bpg:0.2, fg:45.0, tp:36.0, ft:76.0 },
+    { n:'James Wiseman', no:32, pos:'C', gp:35, mpg:10.0, ppg:4.0, rpg:3.0, apg:0.5, spg:0.3, bpg:0.5, fg:58.0, tp:0.0, ft:62.0 }
+  ]
+},
+'lac': {
+  city: 'Los Angeles', name: 'Clippers',
+  players: [
+    { n:'James Harden', no:1, pos:'PG', gp:70, mpg:34.5, ppg:21.5, rpg:5.6, apg:8.5, spg:1.4, bpg:0.6, fg:43.5, tp:36.0, ft:87.0 },
+    { n:'Kawhi Leonard', no:2, pos:'SF', gp:55, mpg:32.0, ppg:22.0, rpg:6.0, apg:3.5, spg:1.6, bpg:0.5, fg:49.5, tp:40.0, ft:88.0 },
+    { n:'Norman Powell', no:24, pos:'SG', gp:68, mpg:31.0, ppg:20.0, rpg:3.2, apg:2.5, spg:1.2, bpg:0.3, fg:47.0, tp:41.0, ft:84.0 },
+    { n:'Ivica Zubac', no:40, pos:'C', gp:76, mpg:32.0, ppg:16.5, rpg:12.5, apg:2.5, spg:0.7, bpg:1.3, fg:62.0, tp:0.0, ft:70.0 },
+    { n:'Derrick Jones Jr.', no:55, pos:'SF', gp:72, mpg:28.0, ppg:10.5, rpg:3.8, apg:1.5, spg:1.0, bpg:0.8, fg:50.0, tp:36.0, ft:72.0 },
+    { n:'Kris Dunn', no:8, pos:'PG', gp:70, mpg:26.0, ppg:7.0, rpg:3.2, apg:3.5, spg:1.7, bpg:0.5, fg:45.0, tp:35.0, ft:74.0 },
+    { n:'Bogdan Bogdanovic', no:13, pos:'SG', gp:65, mpg:24.0, ppg:11.0, rpg:3.0, apg:3.0, spg:1.0, bpg:0.2, fg:43.0, tp:37.5, ft:85.0 },
+    { n:'Nicolas Batum', no:33, pos:'PF', gp:66, mpg:22.0, ppg:5.5, rpg:4.0, apg:2.0, spg:0.8, bpg:0.6, fg:44.0, tp:38.0, ft:80.0 },
+    { n:'Brook Lopez', no:11, pos:'C', gp:70, mpg:22.0, ppg:11.0, rpg:5.0, apg:1.5, spg:0.4, bpg:1.6, fg:50.0, tp:36.0, ft:82.0 },
+    { n:'John Collins', no:20, pos:'PF', gp:68, mpg:24.0, ppg:13.0, rpg:7.5, apg:1.5, spg:0.6, bpg:0.9, fg:53.0, tp:37.0, ft:80.0 },
+    { n:'Kobe Brown', no:45, pos:'SF', gp:50, mpg:12.0, ppg:3.5, rpg:2.0, apg:1.2, spg:0.4, bpg:0.2, fg:44.0, tp:33.0, ft:70.0 },
+    { n:'Jordan Miller', no:7, pos:'SG', gp:48, mpg:11.0, ppg:3.0, rpg:1.5, apg:1.0, spg:0.3, bpg:0.2, fg:46.0, tp:34.0, ft:78.0 },
+    { n:'Cam Christie', no:21, pos:'SG', gp:45, mpg:10.0, ppg:3.5, rpg:1.3, apg:0.8, spg:0.3, bpg:0.1, fg:42.0, tp:35.0, ft:80.0 },
+    { n:'Patrick Baldwin Jr.', no:30, pos:'PF', gp:35, mpg:8.0, ppg:2.5, rpg:1.5, apg:0.5, spg:0.2, bpg:0.3, fg:43.0, tp:36.0, ft:75.0 },
+    { n:'Ben Simmons', no:10, pos:'PG', gp:40, mpg:14.0, ppg:4.0, rpg:4.0, apg:4.5, spg:1.0, bpg:0.5, fg:55.0, tp:0.0, ft:55.0 }
+  ]
+},
+'lal': {
+  city: 'Los Angeles', name: 'Lakers',
+  players: [
+    { n:'Luka Doncic', no:77, pos:'PG', gp:70, mpg:36.0, ppg:28.5, rpg:8.5, apg:8.5, spg:1.5, bpg:0.5, fg:47.0, tp:37.0, ft:78.0 },
+    { n:'LeBron James', no:23, pos:'SF', gp:68, mpg:34.0, ppg:24.0, rpg:7.5, apg:8.0, spg:1.1, bpg:0.6, fg:50.0, tp:36.0, ft:75.0 },
+    { n:'Austin Reaves', no:15, pos:'SG', gp:72, mpg:33.0, ppg:18.0, rpg:4.5, apg:5.5, spg:1.1, bpg:0.3, fg:46.0, tp:37.0, ft:87.0 },
+    { n:'Rui Hachimura', no:28, pos:'PF', gp:70, mpg:30.0, ppg:13.5, rpg:5.0, apg:1.5, spg:0.6, bpg:0.4, fg:50.0, tp:40.0, ft:78.0 },
+    { n:'Deandre Ayton', no:5, pos:'C', gp:72, mpg:30.0, ppg:15.5, rpg:10.5, apg:1.8, spg:0.7, bpg:1.0, fg:58.0, tp:0.0, ft:75.0 },
+    { n:'Gabe Vincent', no:7, pos:'PG', gp:68, mpg:24.0, ppg:7.5, rpg:1.8, apg:2.8, spg:1.0, bpg:0.2, fg:42.0, tp:36.0, ft:82.0 },
+    { n:'Dalton Knecht', no:4, pos:'SG', gp:70, mpg:22.0, ppg:11.0, rpg:3.0, apg:1.2, spg:0.5, bpg:0.2, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Jarred Vanderbilt', no:2, pos:'PF', gp:62, mpg:22.0, ppg:6.0, rpg:6.5, apg:1.5, spg:1.2, bpg:0.5, fg:52.0, tp:30.0, ft:68.0 },
+    { n:'Maxi Kleber', no:14, pos:'PF', gp:60, mpg:18.0, ppg:5.0, rpg:4.5, apg:1.2, spg:0.5, bpg:0.7, fg:45.0, tp:36.0, ft:78.0 },
+    { n:'Jaxson Hayes', no:11, pos:'C', gp:65, mpg:18.0, ppg:7.0, rpg:5.0, apg:1.0, spg:0.4, bpg:1.0, fg:65.0, tp:0.0, ft:68.0 },
+    { n:'Bronny James', no:9, pos:'PG', gp:50, mpg:12.0, ppg:4.0, rpg:1.5, apg:1.8, spg:0.6, bpg:0.2, fg:42.0, tp:32.0, ft:75.0 },
+    { n:'Jordan Goodwin', no:30, pos:'PG', gp:48, mpg:14.0, ppg:5.0, rpg:2.5, apg:2.0, spg:1.0, bpg:0.2, fg:46.0, tp:35.0, ft:74.0 },
+    { n:'Shake Milton', no:20, pos:'SG', gp:45, mpg:12.0, ppg:5.5, rpg:1.8, apg:2.0, spg:0.4, bpg:0.2, fg:44.0, tp:36.0, ft:84.0 },
+    { n:'Christian Koloko', no:19, pos:'C', gp:40, mpg:10.0, ppg:3.0, rpg:3.0, apg:0.5, spg:0.3, bpg:0.8, fg:60.0, tp:0.0, ft:65.0 },
+    { n:'Markieff Morris', no:88, pos:'PF', gp:30, mpg:8.0, ppg:2.5, rpg:1.8, apg:0.8, spg:0.3, bpg:0.1, fg:43.0, tp:34.0, ft:80.0 }
+  ]
+},
+'mem': {
+  city: 'Memphis', name: 'Grizzlies',
+  players: [
+    { n:'Ja Morant', no:12, pos:'PG', gp:65, mpg:33.0, ppg:25.0, rpg:4.5, apg:8.0, spg:1.1, bpg:0.3, fg:47.0, tp:33.0, ft:81.0 },
+    { n:'Jaren Jackson Jr.', no:13, pos:'PF', gp:70, mpg:32.0, ppg:22.0, rpg:5.8, apg:2.0, spg:1.0, bpg:1.6, fg:49.0, tp:36.0, ft:80.0 },
+    { n:'Desmond Bane', no:22, pos:'SG', gp:70, mpg:33.0, ppg:20.0, rpg:5.0, apg:5.0, spg:1.0, bpg:0.4, fg:46.0, tp:38.5, ft:88.0 },
+    { n:'Zach Edey', no:14, pos:'C', gp:68, mpg:26.0, ppg:13.0, rpg:9.5, apg:1.5, spg:0.5, bpg:1.5, fg:58.0, tp:0.0, ft:72.0 },
+    { n:'Jaylen Wells', no:0, pos:'SF', gp:72, mpg:28.0, ppg:11.0, rpg:3.5, apg:2.0, spg:0.9, bpg:0.4, fg:45.0, tp:37.0, ft:80.0 },
+    { n:'Scotty Pippen Jr.', no:1, pos:'PG', gp:68, mpg:24.0, ppg:9.0, rpg:3.0, apg:4.5, spg:1.5, bpg:0.3, fg:44.0, tp:34.0, ft:80.0 },
+    { n:'Santi Aldama', no:7, pos:'PF', gp:70, mpg:24.0, ppg:11.0, rpg:6.5, apg:2.5, spg:0.8, bpg:0.8, fg:47.0, tp:37.0, ft:75.0 },
+    { n:'Marcus Smart', no:36, pos:'SG', gp:55, mpg:24.0, ppg:9.0, rpg:2.8, apg:4.0, spg:1.4, bpg:0.3, fg:42.0, tp:34.0, ft:80.0 },
+    { n:'Brandon Clarke', no:15, pos:'PF', gp:62, mpg:20.0, ppg:9.0, rpg:5.5, apg:1.2, spg:0.6, bpg:0.7, fg:62.0, tp:25.0, ft:65.0 },
+    { n:'John Konchar', no:46, pos:'SG', gp:60, mpg:16.0, ppg:4.0, rpg:3.5, apg:1.5, spg:0.8, bpg:0.2, fg:46.0, tp:36.0, ft:75.0 },
+    { n:'Vince Williams Jr.', no:5, pos:'SF', gp:58, mpg:18.0, ppg:6.0, rpg:3.5, apg:2.5, spg:1.0, bpg:0.4, fg:43.0, tp:35.0, ft:78.0 },
+    { n:'Cam Spencer', no:53, pos:'SG', gp:50, mpg:14.0, ppg:6.0, rpg:1.8, apg:1.8, spg:0.6, bpg:0.1, fg:45.0, tp:40.0, ft:85.0 },
+    { n:'Jay Huff', no:30, pos:'C', gp:48, mpg:13.0, ppg:5.5, rpg:3.0, apg:0.8, spg:0.3, bpg:1.0, fg:50.0, tp:38.0, ft:78.0 },
+    { n:'GG Jackson', no:45, pos:'PF', gp:45, mpg:14.0, ppg:7.0, rpg:2.5, apg:0.8, spg:0.4, bpg:0.3, fg:43.0, tp:34.0, ft:75.0 },
+    { n:'PJ Hall', no:18, pos:'C', gp:40, mpg:12.0, ppg:5.0, rpg:3.0, apg:0.8, spg:0.3, bpg:0.5, fg:50.0, tp:32.0, ft:72.0 }
+  ]
+},
+'mia': {
+  city: 'Miami', name: 'Heat',
+  players: [
+    { n:'Tyler Herro', no:14, pos:'SG', gp:68, mpg:34.0, ppg:23.5, rpg:5.0, apg:5.5, spg:0.9, bpg:0.3, fg:46.0, tp:38.0, ft:88.0 },
+    { n:'Bam Adebayo', no:13, pos:'C', gp:72, mpg:34.0, ppg:18.0, rpg:10.0, apg:4.0, spg:1.2, bpg:1.0, fg:50.0, tp:34.0, ft:78.0 },
+    { n:'Andrew Wiggins', no:22, pos:'SF', gp:70, mpg:32.0, ppg:17.5, rpg:4.5, apg:2.5, spg:1.0, bpg:0.7, fg:46.0, tp:37.0, ft:78.0 },
+    { n:'Norman Powell', no:24, pos:'SG', gp:65, mpg:30.0, ppg:18.0, rpg:3.0, apg:2.5, spg:1.1, bpg:0.3, fg:47.0, tp:40.0, ft:84.0 },
+    { n:'Kel\'el Ware', no:7, pos:'C', gp:70, mpg:26.0, ppg:12.0, rpg:9.0, apg:1.5, spg:0.6, bpg:1.4, fg:55.0, tp:32.0, ft:73.0 },
+    { n:'Davion Mitchell', no:45, pos:'PG', gp:70, mpg:28.0, ppg:9.0, rpg:2.8, apg:5.5, spg:1.2, bpg:0.2, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Nikola Jovic', no:5, pos:'PF', gp:65, mpg:24.0, ppg:11.0, rpg:5.0, apg:3.0, spg:0.7, bpg:0.4, fg:45.0, tp:36.0, ft:78.0 },
+    { n:'Pelle Larsson', no:9, pos:'SG', gp:68, mpg:22.0, ppg:8.0, rpg:3.0, apg:2.5, spg:0.9, bpg:0.3, fg:46.0, tp:38.0, ft:80.0 },
+    { n:'Haywood Highsmith', no:24, pos:'SF', gp:62, mpg:20.0, ppg:6.5, rpg:4.0, apg:1.8, spg:0.9, bpg:0.6, fg:44.0, tp:37.0, ft:75.0 },
+    { n:'Jaime Jaquez Jr.', no:11, pos:'SF', gp:70, mpg:24.0, ppg:10.5, rpg:4.5, apg:3.0, spg:0.9, bpg:0.3, fg:48.0, tp:32.0, ft:73.0 },
+    { n:'Terry Rozier', no:2, pos:'PG', gp:60, mpg:20.0, ppg:9.0, rpg:2.8, apg:3.0, spg:0.9, bpg:0.2, fg:42.0, tp:34.0, ft:82.0 },
+    { n:'Kevin Love', no:42, pos:'PF', gp:45, mpg:14.0, ppg:5.5, rpg:5.0, apg:1.8, spg:0.4, bpg:0.2, fg:42.0, tp:36.0, ft:85.0 },
+    { n:'Duncan Robinson', no:55, pos:'SF', gp:55, mpg:18.0, ppg:8.5, rpg:2.0, apg:1.8, spg:0.4, bpg:0.1, fg:43.0, tp:40.0, ft:85.0 },
+    { n:'Keshad Johnson', no:16, pos:'PF', gp:40, mpg:10.0, ppg:3.0, rpg:2.5, apg:0.5, spg:0.3, bpg:0.3, fg:48.0, tp:30.0, ft:70.0 },
+    { n:'Dru Smith', no:12, pos:'PG', gp:35, mpg:10.0, ppg:3.0, rpg:1.5, apg:2.0, spg:0.7, bpg:0.2, fg:44.0, tp:35.0, ft:78.0 }
+  ]
+},
+'mil': {
+  city: 'Milwaukee', name: 'Bucks',
+  players: [
+    { n:'Giannis Antetokounmpo', no:34, pos:'PF', gp:70, mpg:35.0, ppg:30.5, rpg:11.5, apg:6.0, spg:1.0, bpg:1.2, fg:60.0, tp:28.0, ft:65.0 },
+    { n:'Kyle Kuzma', no:18, pos:'SF', gp:68, mpg:31.0, ppg:16.0, rpg:6.0, apg:2.8, spg:0.7, bpg:0.5, fg:45.0, tp:33.0, ft:75.0 },
+    { n:'Myles Turner', no:5, pos:'C', gp:70, mpg:30.0, ppg:15.0, rpg:7.0, apg:1.5, spg:0.6, bpg:2.0, fg:50.0, tp:37.0, ft:78.0 },
+    { n:'Kevin Porter Jr.', no:7, pos:'PG', gp:68, mpg:28.0, ppg:12.0, rpg:3.5, apg:5.5, spg:1.0, bpg:0.3, fg:45.0, tp:37.0, ft:78.0 },
+    { n:'Gary Trent Jr.', no:9, pos:'SG', gp:72, mpg:28.0, ppg:12.0, rpg:2.5, apg:1.8, spg:1.1, bpg:0.2, fg:43.0, tp:40.0, ft:82.0 },
+    { n:'Bobby Portis', no:9, pos:'PF', gp:65, mpg:26.0, ppg:14.0, rpg:8.0, apg:1.8, spg:0.7, bpg:0.4, fg:47.0, tp:37.0, ft:78.0 },
+    { n:'AJ Green', no:20, pos:'SG', gp:70, mpg:24.0, ppg:9.0, rpg:2.5, apg:1.5, spg:0.5, bpg:0.2, fg:44.0, tp:42.0, ft:85.0 },
+    { n:'Ryan Rollins', no:13, pos:'PG', gp:68, mpg:24.0, ppg:9.5, rpg:3.0, apg:4.0, spg:1.2, bpg:0.3, fg:46.0, tp:38.0, ft:80.0 },
+    { n:'Taurean Prince', no:12, pos:'SF', gp:62, mpg:22.0, ppg:8.0, rpg:3.5, apg:1.8, spg:0.9, bpg:0.3, fg:46.0, tp:39.0, ft:80.0 },
+    { n:'Pat Connaughton', no:24, pos:'SG', gp:55, mpg:16.0, ppg:5.0, rpg:3.0, apg:1.5, spg:0.4, bpg:0.2, fg:42.0, tp:36.0, ft:78.0 },
+    { n:'Andre Jackson Jr.', no:44, pos:'SF', gp:58, mpg:16.0, ppg:4.0, rpg:3.0, apg:2.0, spg:0.8, bpg:0.4, fg:48.0, tp:32.0, ft:65.0 },
+    { n:'Jericho Sims', no:20, pos:'C', gp:60, mpg:16.0, ppg:4.5, rpg:5.5, apg:0.8, spg:0.4, bpg:0.8, fg:62.0, tp:0.0, ft:60.0 },
+    { n:'Chris Livingston', no:23, pos:'SF', gp:45, mpg:12.0, ppg:3.5, rpg:2.5, apg:0.8, spg:0.4, bpg:0.2, fg:45.0, tp:34.0, ft:72.0 },
+    { n:'Tyler Smith', no:25, pos:'PF', gp:48, mpg:13.0, ppg:5.0, rpg:2.5, apg:0.7, spg:0.3, bpg:0.4, fg:46.0, tp:36.0, ft:75.0 },
+    { n:'Stanley Umude', no:0, pos:'SG', gp:35, mpg:10.0, ppg:4.0, rpg:1.8, apg:1.0, spg:0.4, bpg:0.2, fg:44.0, tp:36.0, ft:78.0 }
+  ]
+},
+'min': {
+  city: 'Minneapolis', name: 'Timberwolves',
+  players: [
+    { n:'Anthony Edwards', no:5, pos:'SG', gp:72, mpg:36.0, ppg:27.5, rpg:5.5, apg:5.0, spg:1.2, bpg:0.6, fg:45.0, tp:39.0, ft:83.0 },
+    { n:'Julius Randle', no:30, pos:'PF', gp:68, mpg:33.0, ppg:19.0, rpg:7.5, apg:5.0, spg:0.8, bpg:0.3, fg:47.0, tp:35.0, ft:80.0 },
+    { n:'Rudy Gobert', no:27, pos:'C', gp:72, mpg:31.0, ppg:12.0, rpg:11.0, apg:1.5, spg:0.7, bpg:2.0, fg:66.0, tp:0.0, ft:65.0 },
+    { n:'Jaden McDaniels', no:3, pos:'SF', gp:74, mpg:32.0, ppg:13.0, rpg:5.5, apg:2.5, spg:1.2, bpg:0.9, fg:48.0, tp:35.0, ft:78.0 },
+    { n:'Donte DiVincenzo', no:0, pos:'SG', gp:70, mpg:28.0, ppg:12.0, rpg:4.0, apg:4.5, spg:1.3, bpg:0.2, fg:43.0, tp:39.0, ft:82.0 },
+    { n:'Naz Reid', no:11, pos:'C', gp:72, mpg:27.0, ppg:14.5, rpg:6.0, apg:2.0, spg:0.9, bpg:0.9, fg:48.0, tp:38.0, ft:80.0 },
+    { n:'Mike Conley', no:10, pos:'PG', gp:65, mpg:22.0, ppg:8.0, rpg:2.5, apg:5.0, spg:0.9, bpg:0.1, fg:43.0, tp:40.0, ft:85.0 },
+    { n:'Rob Dillingham', no:4, pos:'PG', gp:68, mpg:22.0, ppg:10.0, rpg:2.5, apg:4.5, spg:0.9, bpg:0.2, fg:44.0, tp:37.0, ft:82.0 },
+    { n:'Terrence Shannon Jr.', no:0, pos:'SG', gp:65, mpg:20.0, ppg:9.5, rpg:3.0, apg:2.0, spg:0.8, bpg:0.3, fg:46.0, tp:36.0, ft:80.0 },
+    { n:'Jaylen Clark', no:2, pos:'PG', gp:55, mpg:14.0, ppg:5.0, rpg:2.0, apg:1.8, spg:1.1, bpg:0.2, fg:44.0, tp:35.0, ft:75.0 },
+    { n:'Joan Beringer', no:13, pos:'C', gp:50, mpg:12.0, ppg:4.0, rpg:4.0, apg:0.6, spg:0.4, bpg:1.0, fg:60.0, tp:0.0, ft:62.0 },
+    { n:'Bones Hyland', no:8, pos:'PG', gp:48, mpg:13.0, ppg:6.5, rpg:1.8, apg:2.5, spg:0.6, bpg:0.2, fg:42.0, tp:36.0, ft:84.0 },
+    { n:'Luka Garza', no:55, pos:'C', gp:45, mpg:10.0, ppg:5.0, rpg:3.0, apg:0.5, spg:0.2, bpg:0.2, fg:52.0, tp:35.0, ft:78.0 },
+    { n:'Leonard Miller', no:33, pos:'PF', gp:42, mpg:11.0, ppg:4.0, rpg:3.5, apg:0.8, spg:0.4, bpg:0.3, fg:48.0, tp:32.0, ft:70.0 },
+    { n:'Josh Minott', no:8, pos:'PF', gp:40, mpg:10.0, ppg:3.5, rpg:2.5, apg:0.8, spg:0.4, bpg:0.3, fg:47.0, tp:33.0, ft:72.0 }
+  ]
+},
+'no': {
+  city: 'New Orleans', name: 'Pelicans',
+  players: [
+    { n:'Zion Williamson', no:1, pos:'PF', gp:60, mpg:32.0, ppg:24.5, rpg:6.8, apg:5.0, spg:1.1, bpg:0.6, fg:57.0, tp:33.0, ft:71.0 },
+    { n:'Dejounte Murray', no:5, pos:'PG', gp:55, mpg:34.0, ppg:21.0, rpg:5.5, apg:7.2, spg:1.6, bpg:0.4, fg:45.0, tp:35.0, ft:79.0 },
+    { n:'Trey Murphy III', no:25, pos:'SF', gp:72, mpg:33.0, ppg:18.5, rpg:5.2, apg:3.5, spg:1.1, bpg:0.6, fg:46.0, tp:38.0, ft:84.0 },
+    { n:'Jordan Poole', no:3, pos:'SG', gp:70, mpg:30.0, ppg:18.0, rpg:3.0, apg:5.0, spg:1.2, bpg:0.3, fg:43.0, tp:37.0, ft:88.0 },
+    { n:'Herbert Jones', no:5, pos:'SF', gp:68, mpg:30.0, ppg:10.5, rpg:4.0, apg:3.0, spg:1.6, bpg:0.8, fg:48.0, tp:36.0, ft:78.0 },
+    { n:'CJ McCollum', no:7, pos:'SG', gp:66, mpg:30.0, ppg:18.0, rpg:4.0, apg:4.5, spg:0.9, bpg:0.4, fg:45.0, tp:39.0, ft:80.0 },
+    { n:'Yves Missi', no:21, pos:'C', gp:74, mpg:26.0, ppg:9.5, rpg:8.5, apg:1.0, spg:0.5, bpg:1.3, fg:62.0, tp:0.0, ft:62.0 },
+    { n:'Jeremiah Fears', no:0, pos:'PG', gp:65, mpg:22.0, ppg:11.0, rpg:2.8, apg:4.0, spg:0.9, bpg:0.2, fg:42.0, tp:32.0, ft:80.0 },
+    { n:'Saddiq Bey', no:4, pos:'SF', gp:55, mpg:20.0, ppg:9.0, rpg:4.5, apg:1.5, spg:0.8, bpg:0.3, fg:43.0, tp:35.0, ft:82.0 },
+    { n:'Kelly Olynyk', no:13, pos:'C', gp:60, mpg:20.0, ppg:8.5, rpg:5.0, apg:3.0, spg:0.7, bpg:0.4, fg:50.0, tp:37.0, ft:80.0 },
+    { n:'Jose Alvarado', no:15, pos:'PG', gp:62, mpg:18.0, ppg:7.5, rpg:2.0, apg:3.0, spg:1.3, bpg:0.1, fg:43.0, tp:35.0, ft:80.0 },
+    { n:'Karlo Matkovic', no:9, pos:'PF', gp:55, mpg:16.0, ppg:6.5, rpg:4.5, apg:1.0, spg:0.5, bpg:0.5, fg:52.0, tp:30.0, ft:70.0 },
+    { n:'Jordan Hawkins', no:24, pos:'SG', gp:50, mpg:15.0, ppg:7.0, rpg:1.8, apg:1.2, spg:0.5, bpg:0.1, fg:42.0, tp:37.0, ft:82.0 },
+    { n:'Antonio Reeves', no:12, pos:'SG', gp:48, mpg:13.0, ppg:6.0, rpg:1.5, apg:1.0, spg:0.4, bpg:0.1, fg:44.0, tp:38.0, ft:85.0 },
+    { n:'Micah Peavy', no:14, pos:'SF', gp:40, mpg:10.0, ppg:3.5, rpg:2.0, apg:1.0, spg:0.5, bpg:0.2, fg:44.0, tp:34.0, ft:72.0 }
+  ]
+},
+'ny': {
+  city: 'New York', name: 'Knicks',
+  players: [
+    { n:'Jalen Brunson', no:11, pos:'PG', gp:72, mpg:35.0, ppg:27.5, rpg:3.5, apg:7.5, spg:1.0, bpg:0.2, fg:48.0, tp:39.0, ft:84.0 },
+    { n:'Karl-Anthony Towns', no:32, pos:'C', gp:70, mpg:34.0, ppg:24.0, rpg:12.5, apg:3.0, spg:0.9, bpg:0.7, fg:53.0, tp:40.0, ft:85.0 },
+    { n:'Mikal Bridges', no:25, pos:'SF', gp:80, mpg:36.0, ppg:17.5, rpg:4.0, apg:3.5, spg:1.2, bpg:0.5, fg:47.0, tp:37.0, ft:83.0 },
+    { n:'OG Anunoby', no:8, pos:'SF', gp:74, mpg:35.0, ppg:17.0, rpg:5.0, apg:2.5, spg:1.6, bpg:0.7, fg:48.0, tp:37.0, ft:78.0 },
+    { n:'Josh Hart', no:3, pos:'SG', gp:77, mpg:33.0, ppg:12.0, rpg:8.0, apg:5.5, spg:1.4, bpg:0.3, fg:50.0, tp:34.0, ft:74.0 },
+    { n:'Mitchell Robinson', no:23, pos:'C', gp:55, mpg:22.0, ppg:6.0, rpg:9.5, apg:1.0, spg:0.7, bpg:1.5, fg:65.0, tp:0.0, ft:55.0 },
+    { n:'Deuce McBride', no:9, pos:'PG', gp:72, mpg:24.0, ppg:10.0, rpg:2.8, apg:2.8, spg:1.3, bpg:0.3, fg:44.0, tp:38.0, ft:82.0 },
+    { n:'Guerschon Yabusele', no:28, pos:'PF', gp:68, mpg:20.0, ppg:9.0, rpg:5.0, apg:2.0, spg:0.7, bpg:0.5, fg:48.0, tp:37.0, ft:75.0 },
+    { n:'Jordan Clarkson', no:0, pos:'SG', gp:60, mpg:18.0, ppg:9.5, rpg:2.5, apg:3.0, spg:0.7, bpg:0.2, fg:43.0, tp:35.0, ft:82.0 },
+    { n:'Mohamed Diawara', no:51, pos:'PF', gp:45, mpg:12.0, ppg:3.5, rpg:3.0, apg:1.0, spg:0.5, bpg:0.4, fg:46.0, tp:33.0, ft:68.0 },
+    { n:'Pacome Dadiet', no:7, pos:'SF', gp:40, mpg:11.0, ppg:4.0, rpg:1.8, apg:0.8, spg:0.4, bpg:0.2, fg:44.0, tp:35.0, ft:76.0 },
+    { n:'Tyler Kolek', no:13, pos:'PG', gp:42, mpg:12.0, ppg:4.0, rpg:1.5, apg:3.0, spg:0.6, bpg:0.1, fg:42.0, tp:34.0, ft:80.0 },
+    { n:'Ariel Hukporti', no:55, pos:'C', gp:40, mpg:12.0, ppg:4.0, rpg:4.0, apg:0.7, spg:0.3, bpg:0.9, fg:60.0, tp:0.0, ft:60.0 },
+    { n:'Landry Shamet', no:44, pos:'SG', gp:50, mpg:13.0, ppg:5.5, rpg:1.5, apg:1.0, spg:0.4, bpg:0.1, fg:43.0, tp:39.0, ft:85.0 },
+    { n:'Pat Spencer', no:12, pos:'PG', gp:30, mpg:8.0, ppg:2.5, rpg:1.5, apg:1.5, spg:0.3, bpg:0.1, fg:45.0, tp:33.0, ft:78.0 }
+  ]
+},
+'okc': {
+  city: 'Oklahoma City', name: 'Thunder',
+  players: [
+    { n:'Shai Gilgeous-Alexander', no:2, pos:'PG', gp:75, mpg:34.0, ppg:31.5, rpg:5.5, apg:6.4, spg:1.7, bpg:1.0, fg:53.0, tp:37.0, ft:90.0 },
+    { n:'Jalen Williams', no:8, pos:'SF', gp:72, mpg:33.0, ppg:21.0, rpg:5.5, apg:5.0, spg:1.6, bpg:0.7, fg:48.0, tp:36.0, ft:82.0 },
+    { n:'Chet Holmgren', no:7, pos:'C', gp:68, mpg:30.0, ppg:17.5, rpg:8.5, apg:2.5, spg:0.7, bpg:2.4, fg:52.0, tp:38.0, ft:80.0 },
+    { n:'Luguentz Dort', no:5, pos:'SG', gp:76, mpg:29.0, ppg:10.5, rpg:4.0, apg:1.8, spg:1.1, bpg:0.5, fg:44.0, tp:37.0, ft:80.0 },
+    { n:'Isaiah Hartenstein', no:55, pos:'C', gp:70, mpg:27.0, ppg:11.5, rpg:11.0, apg:3.5, spg:1.0, bpg:1.1, fg:58.0, tp:0.0, ft:70.0 },
+    { n:'Cason Wallace', no:22, pos:'PG', gp:74, mpg:25.0, ppg:9.0, rpg:3.5, apg:2.5, spg:1.6, bpg:0.6, fg:47.0, tp:38.0, ft:78.0 },
+    { n:'Aaron Wiggins', no:21, pos:'SG', gp:72, mpg:22.0, ppg:11.0, rpg:3.5, apg:2.5, spg:0.8, bpg:0.3, fg:48.0, tp:38.0, ft:82.0 },
+    { n:'Isaiah Joe', no:11, pos:'SG', gp:70, mpg:20.0, ppg:9.5, rpg:2.5, apg:1.8, spg:0.7, bpg:0.2, fg:43.0, tp:41.0, ft:88.0 },
+    { n:'Alex Caruso', no:9, pos:'SG', gp:65, mpg:19.0, ppg:7.0, rpg:3.5, apg:3.0, spg:1.7, bpg:0.5, fg:44.0, tp:36.0, ft:80.0 },
+    { n:'Ajay Mitchell', no:25, pos:'PG', gp:60, mpg:18.0, ppg:8.0, rpg:2.5, apg:3.0, spg:0.7, bpg:0.2, fg:47.0, tp:37.0, ft:84.0 },
+    { n:'Kenrich Williams', no:34, pos:'PF', gp:55, mpg:15.0, ppg:5.0, rpg:3.5, apg:1.8, spg:0.8, bpg:0.3, fg:50.0, tp:36.0, ft:72.0 },
+    { n:'Jaylin Williams', no:6, pos:'C', gp:58, mpg:15.0, ppg:5.5, rpg:4.5, apg:2.0, spg:0.6, bpg:0.5, fg:46.0, tp:34.0, ft:72.0 },
+    { n:'Ousmane Dieng', no:13, pos:'SF', gp:45, mpg:12.0, ppg:4.5, rpg:2.5, apg:1.2, spg:0.5, bpg:0.3, fg:45.0, tp:33.0, ft:75.0 },
+    { n:'Nikola Topic', no:44, pos:'PG', gp:50, mpg:14.0, ppg:6.0, rpg:2.0, apg:3.0, spg:0.6, bpg:0.1, fg:44.0, tp:32.0, ft:78.0 },
+    { n:'Branden Carlson', no:33, pos:'C', gp:35, mpg:9.0, ppg:3.0, rpg:2.0, apg:0.5, spg:0.3, bpg:0.4, fg:48.0, tp:35.0, ft:75.0 }
+  ]
+},
+'orl': {
+  city: 'Orlando', name: 'Magic',
+  players: [
+    { n:'Paolo Banchero', no:5, pos:'PF', gp:70, mpg:34.0, ppg:25.5, rpg:7.5, apg:5.0, spg:0.9, bpg:0.6, fg:46.0, tp:34.0, ft:78.0 },
+    { n:'Franz Wagner', no:22, pos:'SF', gp:72, mpg:34.0, ppg:24.0, rpg:5.8, apg:5.5, spg:1.3, bpg:0.6, fg:47.0, tp:33.0, ft:84.0 },
+    { n:'Desmond Bane', no:0, pos:'SG', gp:73, mpg:33.0, ppg:19.0, rpg:5.0, apg:4.5, spg:1.1, bpg:0.4, fg:47.0, tp:39.0, ft:88.0 },
+    { n:'Jalen Suggs', no:4, pos:'PG', gp:60, mpg:30.0, ppg:14.0, rpg:3.8, apg:4.5, spg:1.6, bpg:0.5, fg:43.0, tp:35.0, ft:78.0 },
+    { n:'Wendell Carter Jr.', no:34, pos:'C', gp:65, mpg:27.0, ppg:11.0, rpg:9.0, apg:2.5, spg:0.8, bpg:0.7, fg:51.0, tp:35.0, ft:75.0 },
+    { n:'Anthony Black', no:0, pos:'PG', gp:72, mpg:25.0, ppg:9.5, rpg:3.5, apg:3.5, spg:1.3, bpg:0.5, fg:45.0, tp:34.0, ft:78.0 },
+    { n:'Jonathan Isaac', no:1, pos:'PF', gp:60, mpg:18.0, ppg:7.5, rpg:5.0, apg:1.0, spg:0.9, bpg:1.6, fg:50.0, tp:33.0, ft:72.0 },
+    { n:'Tristan da Silva', no:23, pos:'SF', gp:70, mpg:22.0, ppg:8.0, rpg:3.5, apg:2.0, spg:0.7, bpg:0.4, fg:45.0, tp:36.0, ft:80.0 },
+    { n:'Goga Bitadze', no:35, pos:'C', gp:62, mpg:18.0, ppg:7.0, rpg:6.0, apg:1.5, spg:0.6, bpg:1.2, fg:58.0, tp:25.0, ft:70.0 },
+    { n:'Kentavious Caldwell-Pope', no:1, pos:'SG', gp:68, mpg:24.0, ppg:9.0, rpg:2.5, apg:2.0, spg:1.0, bpg:0.3, fg:44.0, tp:39.0, ft:82.0 },
+    { n:'Jase Richardson', no:11, pos:'SG', gp:55, mpg:16.0, ppg:7.0, rpg:2.0, apg:2.0, spg:0.6, bpg:0.2, fg:44.0, tp:36.0, ft:80.0 },
+    { n:'Noah Penda', no:7, pos:'SF', gp:50, mpg:14.0, ppg:5.0, rpg:3.0, apg:1.5, spg:0.7, bpg:0.3, fg:45.0, tp:34.0, ft:72.0 },
+    { n:'Jett Howard', no:13, pos:'SG', gp:40, mpg:11.0, ppg:4.5, rpg:1.5, apg:1.0, spg:0.3, bpg:0.1, fg:43.0, tp:36.0, ft:80.0 },
+    { n:'Colin Castleton', no:12, pos:'C', gp:35, mpg:9.0, ppg:3.0, rpg:2.5, apg:0.7, spg:0.3, bpg:0.6, fg:55.0, tp:0.0, ft:68.0 },
+    { n:'Tyus Jones', no:8, pos:'PG', gp:60, mpg:18.0, ppg:7.0, rpg:1.8, apg:4.0, spg:0.8, bpg:0.1, fg:44.0, tp:38.0, ft:85.0 }
+  ]
+},
+'phi': {
+  city: 'Philadelphia', name: '76ers',
+  players: [
+    { n:'Tyrese Maxey', no:0, pos:'PG', gp:70, mpg:37.0, ppg:27.0, rpg:3.8, apg:6.5, spg:1.7, bpg:0.4, fg:45.0, tp:37.0, ft:88.0 },
+    { n:'Joel Embiid', no:21, pos:'C', gp:50, mpg:32.0, ppg:28.0, rpg:10.5, apg:4.5, spg:1.0, bpg:1.6, fg:52.0, tp:34.0, ft:88.0 },
+    { n:'Paul George', no:8, pos:'SF', gp:55, mpg:32.0, ppg:18.5, rpg:5.5, apg:4.5, spg:1.5, bpg:0.5, fg:44.0, tp:37.0, ft:86.0 },
+    { n:'VJ Edgecombe', no:77, pos:'SG', gp:72, mpg:30.0, ppg:16.0, rpg:4.5, apg:4.0, spg:1.6, bpg:0.6, fg:44.0, tp:35.0, ft:80.0 },
+    { n:'Quentin Grimes', no:5, pos:'SG', gp:70, mpg:30.0, ppg:15.0, rpg:4.5, apg:3.5, spg:1.0, bpg:0.3, fg:45.0, tp:37.0, ft:80.0 },
+    { n:'Kelly Oubre Jr.', no:9, pos:'SF', gp:68, mpg:28.0, ppg:14.0, rpg:5.0, apg:1.8, spg:1.2, bpg:0.6, fg:45.0, tp:33.0, ft:76.0 },
+    { n:'Andre Drummond', no:5, pos:'C', gp:60, mpg:20.0, ppg:8.0, rpg:9.0, apg:1.0, spg:0.8, bpg:0.8, fg:55.0, tp:0.0, ft:55.0 },
+    { n:'Jared McCain', no:20, pos:'PG', gp:55, mpg:24.0, ppg:14.0, rpg:3.0, apg:3.5, spg:0.9, bpg:0.2, fg:44.0, tp:38.0, ft:85.0 },
+    { n:'Justin Edwards', no:1, pos:'SF', gp:62, mpg:20.0, ppg:8.0, rpg:3.0, apg:1.5, spg:0.7, bpg:0.3, fg:46.0, tp:36.0, ft:78.0 },
+    { n:'Adem Bona', no:30, pos:'C', gp:58, mpg:16.0, ppg:6.0, rpg:5.0, apg:0.7, spg:0.6, bpg:1.3, fg:62.0, tp:0.0, ft:62.0 },
+    { n:'Eric Gordon', no:23, pos:'SG', gp:55, mpg:16.0, ppg:7.0, rpg:1.8, apg:1.8, spg:0.6, bpg:0.2, fg:43.0, tp:38.0, ft:82.0 },
+    { n:'Trendon Watford', no:13, pos:'PF', gp:50, mpg:15.0, ppg:6.5, rpg:3.5, apg:2.0, spg:0.5, bpg:0.3, fg:48.0, tp:33.0, ft:72.0 },
+    { n:'Dominick Barlow', no:44, pos:'PF', gp:40, mpg:12.0, ppg:4.5, rpg:3.5, apg:1.0, spg:0.4, bpg:0.5, fg:55.0, tp:25.0, ft:65.0 },
+    { n:'Jabari Walker', no:34, pos:'PF', gp:38, mpg:11.0, ppg:4.0, rpg:3.5, apg:0.8, spg:0.4, bpg:0.2, fg:48.0, tp:32.0, ft:70.0 },
+    { n:'Johni Broome', no:4, pos:'C', gp:45, mpg:13.0, ppg:5.0, rpg:4.5, apg:1.2, spg:0.4, bpg:0.8, fg:52.0, tp:28.0, ft:68.0 }
+  ]
+},
+'phx': {
+  city: 'Phoenix', name: 'Suns',
+  players: [
+    { n:'Devin Booker', no:1, pos:'SG', gp:74, mpg:36.0, ppg:26.5, rpg:4.5, apg:7.0, spg:0.9, bpg:0.3, fg:46.0, tp:36.0, ft:88.0 },
+    { n:'Jalen Green', no:4, pos:'SG', gp:70, mpg:33.0, ppg:21.0, rpg:4.5, apg:3.5, spg:0.9, bpg:0.3, fg:43.0, tp:35.0, ft:80.0 },
+    { n:'Dillon Brooks', no:24, pos:'SF', gp:72, mpg:31.0, ppg:15.0, rpg:3.5, apg:2.0, spg:1.0, bpg:0.4, fg:45.0, tp:36.0, ft:78.0 },
+    { n:'Mark Williams', no:5, pos:'C', gp:60, mpg:28.0, ppg:14.0, rpg:10.5, apg:1.5, spg:0.7, bpg:1.4, fg:60.0, tp:0.0, ft:70.0 },
+    { n:'Grayson Allen', no:8, pos:'SG', gp:72, mpg:29.0, ppg:13.0, rpg:3.5, apg:3.5, spg:0.9, bpg:0.2, fg:46.0, tp:42.0, ft:88.0 },
+    { n:'Ryan Dunn', no:0, pos:'SF', gp:70, mpg:25.0, ppg:8.0, rpg:4.5, apg:1.5, spg:1.0, bpg:0.9, fg:46.0, tp:34.0, ft:72.0 },
+    { n:'Collin Gillespie', no:32, pos:'PG', gp:65, mpg:24.0, ppg:10.0, rpg:2.8, apg:5.0, spg:1.0, bpg:0.2, fg:44.0, tp:38.0, ft:84.0 },
+    { n:'Royce O\'Neale', no:0, pos:'PF', gp:70, mpg:24.0, ppg:8.0, rpg:4.5, apg:2.5, spg:1.0, bpg:0.4, fg:44.0, tp:38.0, ft:80.0 },
+    { n:'Nick Richards', no:2, pos:'C', gp:62, mpg:18.0, ppg:7.5, rpg:7.0, apg:0.8, spg:0.5, bpg:1.0, fg:62.0, tp:0.0, ft:65.0 },
+    { n:'Jordan Goodwin', no:7, pos:'PG', gp:58, mpg:18.0, ppg:7.0, rpg:3.5, apg:3.0, spg:1.3, bpg:0.3, fg:45.0, tp:34.0, ft:78.0 },
+    { n:'Oso Ighodaro', no:11, pos:'C', gp:60, mpg:16.0, ppg:5.5, rpg:4.0, apg:2.0, spg:0.6, bpg:0.6, fg:58.0, tp:0.0, ft:68.0 },
+    { n:'Rasheer Fleming', no:20, pos:'PF', gp:50, mpg:14.0, ppg:5.0, rpg:3.5, apg:0.8, spg:0.5, bpg:0.6, fg:48.0, tp:35.0, ft:70.0 },
+    { n:'Khaman Maluach', no:10, pos:'C', gp:48, mpg:13.0, ppg:5.0, rpg:4.0, apg:0.5, spg:0.3, bpg:1.0, fg:60.0, tp:0.0, ft:65.0 },
+    { n:'Jared Butler', no:13, pos:'PG', gp:45, mpg:12.0, ppg:5.0, rpg:1.5, apg:2.5, spg:0.6, bpg:0.1, fg:43.0, tp:35.0, ft:80.0 },
+    { n:'Nigel Hayes-Davis', no:6, pos:'PF', gp:40, mpg:11.0, ppg:4.5, rpg:2.5, apg:1.0, spg:0.4, bpg:0.2, fg:45.0, tp:36.0, ft:78.0 }
+  ]
+},
+'por': {
+  city: 'Portland', name: 'Trail Blazers',
+  players: [
+    { n:'Deni Avdija', no:8, pos:'SF', gp:72, mpg:33.0, ppg:18.5, rpg:7.5, apg:4.8, spg:1.1, bpg:0.6, fg:46.5, tp:35.5, ft:78.0 },
+    { n:'Jerami Grant', no:9, pos:'PF', gp:65, mpg:31.0, ppg:16.5, rpg:3.7, apg:2.6, spg:0.7, bpg:0.7, fg:42.0, tp:36.5, ft:83.5 },
+    { n:'Shaedon Sharpe', no:17, pos:'SG', gp:68, mpg:30.0, ppg:17.0, rpg:4.8, apg:3.2, spg:0.9, bpg:0.4, fg:44.0, tp:34.0, ft:80.0 },
+    { n:'Scoot Henderson', no:0, pos:'PG', gp:70, mpg:28.0, ppg:14.0, rpg:3.6, apg:5.8, spg:1.0, bpg:0.3, fg:42.5, tp:33.0, ft:82.0 },
+    { n:'Donovan Clingan', no:23, pos:'C', gp:71, mpg:27.0, ppg:10.5, rpg:9.5, apg:1.6, spg:0.7, bpg:1.8, fg:56.0, tp:25.0, ft:62.0 },
+    { n:'Toumani Camara', no:33, pos:'SF', gp:74, mpg:29.0, ppg:11.0, rpg:5.8, apg:2.2, spg:1.4, bpg:0.6, fg:46.0, tp:37.0, ft:75.0 },
+    { n:'Jrue Holiday', no:4, pos:'PG', gp:62, mpg:28.0, ppg:12.0, rpg:4.5, apg:5.5, spg:1.2, bpg:0.5, fg:44.0, tp:37.0, ft:84.0 },
+    { n:'Robert Williams III', no:35, pos:'C', gp:45, mpg:20.0, ppg:7.0, rpg:7.0, apg:1.8, spg:0.9, bpg:1.6, fg:62.0, tp:20.0, ft:60.0 },
+    { n:'Matisse Thybulle', no:4, pos:'SG', gp:55, mpg:18.0, ppg:4.5, rpg:2.2, apg:1.6, spg:1.5, bpg:0.6, fg:43.0, tp:36.0, ft:70.0 },
+    { n:'Kris Murray', no:24, pos:'SF', gp:58, mpg:16.0, ppg:6.0, rpg:3.4, apg:1.2, spg:0.6, bpg:0.4, fg:43.0, tp:34.0, ft:74.0 },
+    { n:'Duop Reath', no:26, pos:'C', gp:60, mpg:15.0, ppg:6.5, rpg:3.2, apg:0.9, spg:0.4, bpg:0.7, fg:46.0, tp:36.0, ft:76.0 },
+    { n:'Rayan Rupert', no:45, pos:'SG', gp:50, mpg:13.0, ppg:4.0, rpg:2.0, apg:1.0, spg:0.7, bpg:0.3, fg:42.0, tp:32.0, ft:72.0 },
+    { n:'Dalano Banton', no:5, pos:'PG', gp:48, mpg:14.0, ppg:7.5, rpg:2.5, apg:2.5, spg:0.6, bpg:0.3, fg:42.0, tp:31.0, ft:78.0 },
+    { n:'Sidy Cissoko', no:6, pos:'SF', gp:40, mpg:11.0, ppg:3.5, rpg:1.8, apg:1.2, spg:0.5, bpg:0.2, fg:43.0, tp:33.0, ft:70.0 }
+  ]
+},
+'sac': {
+  city: 'Sacramento', name: 'Kings',
+  players: [
+    { n:'DeMar DeRozan', no:10, pos:'SF', gp:74, mpg:35.0, ppg:22.0, rpg:4.0, apg:4.5, spg:0.9, bpg:0.5, fg:48.0, tp:33.0, ft:85.0 },
+    { n:'Domantas Sabonis', no:11, pos:'C', gp:72, mpg:35.0, ppg:19.0, rpg:13.5, apg:6.0, spg:0.8, bpg:0.5, fg:59.0, tp:38.0, ft:73.0 },
+    { n:'Zach LaVine', no:8, pos:'SG', gp:68, mpg:34.0, ppg:22.5, rpg:4.5, apg:4.0, spg:1.0, bpg:0.3, fg:46.0, tp:40.0, ft:85.0 },
+    { n:'Malik Monk', no:0, pos:'PG', gp:65, mpg:28.0, ppg:15.5, rpg:3.5, apg:5.5, spg:0.9, bpg:0.3, fg:44.0, tp:34.0, ft:85.0 },
+    { n:'Keegan Murray', no:13, pos:'PF', gp:73, mpg:31.0, ppg:12.5, rpg:6.5, apg:1.8, spg:1.0, bpg:0.7, fg:45.0, tp:36.0, ft:80.0 },
+    { n:'Devin Carter', no:3, pos:'PG', gp:66, mpg:24.0, ppg:9.0, rpg:3.8, apg:3.5, spg:1.1, bpg:0.3, fg:43.0, tp:34.0, ft:75.0 },
+    { n:'Keon Ellis', no:23, pos:'SG', gp:70, mpg:25.0, ppg:8.5, rpg:3.0, apg:2.0, spg:1.4, bpg:0.5, fg:45.0, tp:38.0, ft:78.0 },
+    { n:'Trey Lyles', no:41, pos:'PF', gp:64, mpg:18.0, ppg:6.5, rpg:4.0, apg:1.4, spg:0.5, bpg:0.4, fg:45.0, tp:36.0, ft:76.0 },
+    { n:'Jonas Valanciunas', no:17, pos:'C', gp:62, mpg:17.0, ppg:9.0, rpg:7.0, apg:1.5, spg:0.3, bpg:0.6, fg:55.0, tp:33.0, ft:78.0 },
+    { n:'Doug McDermott', no:30, pos:'SF', gp:55, mpg:15.0, ppg:6.0, rpg:1.8, apg:1.0, spg:0.3, bpg:0.1, fg:46.0, tp:41.0, ft:88.0 },
+    { n:'Isaac Jones', no:22, pos:'PF', gp:50, mpg:13.0, ppg:5.5, rpg:3.2, apg:0.8, spg:0.4, bpg:0.4, fg:55.0, tp:30.0, ft:70.0 },
+    { n:'Jordan McLaughlin', no:9, pos:'PG', gp:48, mpg:12.0, ppg:3.5, rpg:1.5, apg:3.0, spg:0.7, bpg:0.1, fg:44.0, tp:36.0, ft:82.0 },
+    { n:'Mason Jones', no:14, pos:'SG', gp:40, mpg:11.0, ppg:5.0, rpg:1.8, apg:1.5, spg:0.5, bpg:0.1, fg:43.0, tp:35.0, ft:84.0 },
+    { n:'Maxime Raynaud', no:42, pos:'C', gp:45, mpg:12.0, ppg:5.5, rpg:4.0, apg:1.0, spg:0.3, bpg:0.5, fg:48.0, tp:34.0, ft:75.0 },
+    { n:'Terence Davis', no:5, pos:'SG', gp:35, mpg:10.0, ppg:4.0, rpg:1.5, apg:1.0, spg:0.4, bpg:0.1, fg:42.0, tp:34.0, ft:80.0 }
+  ]
+},
+'sa': {
+  city: 'San Antonio', name: 'Spurs',
+  players: [
+    { n:'Victor Wembanyama', no:1, pos:'C', gp:68, mpg:33.0, ppg:25.5, rpg:11.5, apg:4.0, spg:1.2, bpg:3.9, fg:47.5, tp:35.0, ft:84.0 },
+    { n:'De\'Aaron Fox', no:4, pos:'PG', gp:70, mpg:34.0, ppg:24.0, rpg:4.5, apg:6.5, spg:1.8, bpg:0.4, fg:46.0, tp:34.0, ft:83.0 },
+    { n:'Stephon Castle', no:5, pos:'SG', gp:72, mpg:30.0, ppg:15.0, rpg:4.0, apg:5.0, spg:1.0, bpg:0.4, fg:44.0, tp:31.0, ft:74.0 },
+    { n:'Harrison Barnes', no:40, pos:'SF', gp:73, mpg:30.0, ppg:12.5, rpg:4.0, apg:1.5, spg:0.7, bpg:0.3, fg:47.0, tp:38.0, ft:82.0 },
+    { n:'Devin Vassell', no:24, pos:'SG', gp:66, mpg:30.0, ppg:16.5, rpg:3.8, apg:2.8, spg:1.0, bpg:0.3, fg:44.0, tp:37.0, ft:82.0 },
+    { n:'Jeremy Sochan', no:10, pos:'PF', gp:68, mpg:27.0, ppg:11.5, rpg:6.5, apg:3.0, spg:0.8, bpg:0.5, fg:48.0, tp:32.0, ft:70.0 },
+    { n:'Julian Champagnie', no:30, pos:'SF', gp:70, mpg:24.0, ppg:9.0, rpg:4.0, apg:1.4, spg:0.7, bpg:0.6, fg:43.0, tp:38.0, ft:78.0 },
+    { n:'Keldon Johnson', no:3, pos:'SF', gp:65, mpg:22.0, ppg:11.0, rpg:4.5, apg:2.0, spg:0.7, bpg:0.3, fg:45.0, tp:35.0, ft:80.0 },
+    { n:'Chris Paul', no:3, pos:'PG', gp:70, mpg:22.0, ppg:8.5, rpg:3.0, apg:7.5, spg:1.2, bpg:0.1, fg:43.0, tp:37.0, ft:88.0 },
+    { n:'Luke Kornet', no:7, pos:'C', gp:64, mpg:18.0, ppg:6.5, rpg:6.0, apg:1.2, spg:0.4, bpg:1.5, fg:65.0, tp:0.0, ft:60.0 },
+    { n:'Dylan Harper', no:2, pos:'PG', gp:60, mpg:20.0, ppg:11.0, rpg:3.0, apg:4.0, spg:0.9, bpg:0.3, fg:44.0, tp:33.0, ft:80.0 },
+    { n:'Carter Bryant', no:11, pos:'SF', gp:55, mpg:15.0, ppg:5.5, rpg:3.0, apg:1.0, spg:0.6, bpg:0.5, fg:44.0, tp:35.0, ft:75.0 },
+    { n:'Bismack Biyombo', no:18, pos:'C', gp:45, mpg:12.0, ppg:3.0, rpg:4.0, apg:0.6, spg:0.3, bpg:0.9, fg:55.0, tp:0.0, ft:65.0 },
+    { n:'Blake Wesley', no:14, pos:'PG', gp:48, mpg:13.0, ppg:4.5, rpg:1.8, apg:2.0, spg:0.6, bpg:0.2, fg:42.0, tp:31.0, ft:75.0 },
+    { n:'Charles Bassey', no:28, pos:'C', gp:40, mpg:11.0, ppg:4.0, rpg:4.0, apg:0.5, spg:0.3, bpg:0.8, fg:60.0, tp:0.0, ft:62.0 }
+  ]
+},
+'tor': {
+  city: 'Toronto', name: 'Raptors',
+  players: [
+    { n:'Scottie Barnes', no:4, pos:'PF', gp:72, mpg:35.0, ppg:20.0, rpg:8.0, apg:6.0, spg:1.4, bpg:1.3, fg:46.0, tp:32.0, ft:78.0 },
+    { n:'RJ Barrett', no:9, pos:'SF', gp:70, mpg:33.0, ppg:21.0, rpg:6.0, apg:5.0, spg:0.9, bpg:0.4, fg:46.0, tp:35.0, ft:75.0 },
+    { n:'Immanuel Quickley', no:5, pos:'PG', gp:65, mpg:32.0, ppg:17.0, rpg:4.0, apg:6.5, spg:1.2, bpg:0.3, fg:43.0, tp:37.0, ft:84.0 },
+    { n:'Brandon Ingram', no:3, pos:'SF', gp:64, mpg:33.0, ppg:22.0, rpg:5.5, apg:5.0, spg:0.8, bpg:0.6, fg:47.0, tp:37.0, ft:82.0 },
+    { n:'Jakob Poeltl', no:19, pos:'C', gp:70, mpg:28.0, ppg:13.0, rpg:9.5, apg:3.0, spg:0.7, bpg:1.7, fg:62.0, tp:0.0, ft:65.0 },
+    { n:'Gradey Dick', no:1, pos:'SG', gp:68, mpg:28.0, ppg:14.0, rpg:3.5, apg:2.2, spg:0.7, bpg:0.3, fg:44.0, tp:37.0, ft:85.0 },
+    { n:'Ja\'Kobe Walter', no:14, pos:'SG', gp:66, mpg:22.0, ppg:9.0, rpg:3.0, apg:1.8, spg:0.8, bpg:0.3, fg:43.0, tp:36.0, ft:80.0 },
+    { n:'Ochai Agbaji', no:30, pos:'SG', gp:70, mpg:24.0, ppg:9.5, rpg:4.0, apg:1.8, spg:1.0, bpg:0.7, fg:46.0, tp:37.0, ft:74.0 },
+    { n:'Jamal Shead', no:23, pos:'PG', gp:68, mpg:20.0, ppg:7.0, rpg:2.5, apg:4.0, spg:1.2, bpg:0.2, fg:43.0, tp:33.0, ft:78.0 },
+    { n:'Jonathan Mogbo', no:2, pos:'PF', gp:60, mpg:16.0, ppg:5.5, rpg:4.5, apg:1.8, spg:0.7, bpg:0.6, fg:54.0, tp:25.0, ft:62.0 },
+    { n:'Chris Boucher', no:25, pos:'PF', gp:62, mpg:15.0, ppg:8.0, rpg:4.5, apg:0.8, spg:0.5, bpg:0.8, fg:48.0, tp:36.0, ft:75.0 },
+    { n:'Kelly Olynyk', no:41, pos:'C', gp:55, mpg:16.0, ppg:7.0, rpg:4.5, apg:2.5, spg:0.6, bpg:0.4, fg:50.0, tp:38.0, ft:80.0 },
+    { n:'Collin Murray-Boyles', no:8, pos:'PF', gp:50, mpg:13.0, ppg:5.0, rpg:3.5, apg:1.2, spg:0.7, bpg:0.5, fg:52.0, tp:28.0, ft:68.0 },
+    { n:'Jamison Battle', no:77, pos:'SF', gp:45, mpg:12.0, ppg:4.5, rpg:1.8, apg:0.8, spg:0.3, bpg:0.2, fg:44.0, tp:38.0, ft:80.0 },
+    { n:'Ja\'Kobe Walter', no:13, pos:'PG', gp:40, mpg:10.0, ppg:3.5, rpg:1.5, apg:2.0, spg:0.5, bpg:0.1, fg:42.0, tp:34.0, ft:78.0 }
+  ]
+},
+'utah': {
+  city: 'Salt Lake City', name: 'Jazz',
+  players: [
+    { n:'Lauri Markkanen', no:23, pos:'PF', gp:68, mpg:33.0, ppg:23.0, rpg:7.5, apg:2.0, spg:0.8, bpg:0.5, fg:46.0, tp:38.0, ft:88.0 },
+    { n:'Keyonte George', no:3, pos:'PG', gp:70, mpg:31.0, ppg:17.0, rpg:3.5, apg:5.5, spg:0.9, bpg:0.3, fg:42.0, tp:35.0, ft:85.0 },
+    { n:'Walker Kessler', no:24, pos:'C', gp:72, mpg:30.0, ppg:11.5, rpg:11.5, apg:1.8, spg:0.6, bpg:2.5, fg:68.0, tp:0.0, ft:55.0 },
+    { n:'Collin Sexton', no:2, pos:'SG', gp:66, mpg:28.0, ppg:16.0, rpg:2.8, apg:4.5, spg:0.9, bpg:0.2, fg:47.0, tp:38.0, ft:86.0 },
+    { n:'Isaiah Collier', no:13, pos:'PG', gp:70, mpg:27.0, ppg:9.0, rpg:3.0, apg:6.0, spg:1.2, bpg:0.2, fg:44.0, tp:30.0, ft:70.0 },
+    { n:'Brice Sensabaugh', no:21, pos:'SF', gp:68, mpg:24.0, ppg:13.0, rpg:3.5, apg:1.8, spg:0.6, bpg:0.3, fg:45.0, tp:39.0, ft:82.0 },
+    { n:'John Collins', no:20, pos:'PF', gp:60, mpg:28.0, ppg:16.0, rpg:8.0, apg:1.8, spg:0.7, bpg:1.0, fg:53.0, tp:38.0, ft:80.0 },
+    { n:'Taylor Hendricks', no:0, pos:'PF', gp:62, mpg:24.0, ppg:9.0, rpg:5.5, apg:1.2, spg:0.7, bpg:1.0, fg:46.0, tp:35.0, ft:75.0 },
+    { n:'Ace Bailey', no:7, pos:'SF', gp:65, mpg:25.0, ppg:13.5, rpg:5.0, apg:1.8, spg:0.7, bpg:0.7, fg:43.0, tp:34.0, ft:78.0 },
+    { n:'Cody Williams', no:5, pos:'SF', gp:60, mpg:20.0, ppg:7.0, rpg:3.0, apg:1.8, spg:0.7, bpg:0.4, fg:42.0, tp:33.0, ft:76.0 },
+    { n:'Svi Mykhailiuk', no:10, pos:'SG', gp:58, mpg:16.0, ppg:7.0, rpg:1.8, apg:1.5, spg:0.5, bpg:0.2, fg:44.0, tp:39.0, ft:82.0 },
+    { n:'Kyle Filipowski', no:22, pos:'C', gp:64, mpg:18.0, ppg:9.0, rpg:6.0, apg:1.8, spg:0.7, bpg:0.7, fg:50.0, tp:35.0, ft:75.0 },
+    { n:'Jusuf Nurkic', no:27, pos:'C', gp:50, mpg:15.0, ppg:7.0, rpg:6.5, apg:2.0, spg:0.6, bpg:0.6, fg:50.0, tp:25.0, ft:68.0 },
+    { n:'Elijah Harkless', no:11, pos:'PG', gp:40, mpg:11.0, ppg:3.5, rpg:1.5, apg:1.5, spg:0.6, bpg:0.1, fg:42.0, tp:32.0, ft:75.0 },
+    { n:'Johnny Juzang', no:33, pos:'SF', gp:42, mpg:12.0, ppg:5.0, rpg:1.8, apg:0.8, spg:0.3, bpg:0.1, fg:43.0, tp:36.0, ft:80.0 }
+  ]
+},
+'wsh': {
+  city: 'Washington', name: 'Wizards',
+  players: [
+    { n:'Jordan Poole', no:13, pos:'SG', gp:70, mpg:32.0, ppg:21.0, rpg:3.5, apg:5.0, spg:1.2, bpg:0.3, fg:43.0, tp:37.0, ft:88.0 },
+    { n:'Kyle Kuzma', no:33, pos:'PF', gp:66, mpg:31.0, ppg:18.0, rpg:6.0, apg:4.0, spg:0.6, bpg:0.5, fg:45.0, tp:33.0, ft:75.0 },
+    { n:'Alex Sarr', no:20, pos:'C', gp:72, mpg:28.0, ppg:13.0, rpg:7.0, apg:2.2, spg:0.8, bpg:1.6, fg:43.0, tp:31.0, ft:72.0 },
+    { n:'Bilal Coulibaly', no:0, pos:'SF', gp:70, mpg:30.0, ppg:13.5, rpg:5.0, apg:3.5, spg:1.3, bpg:0.8, fg:45.0, tp:34.0, ft:78.0 },
+    { n:'Bub Carrington', no:7, pos:'PG', gp:72, mpg:29.0, ppg:12.0, rpg:4.5, apg:5.0, spg:0.9, bpg:0.3, fg:42.0, tp:35.0, ft:82.0 },
+    { n:'CJ McCollum', no:3, pos:'SG', gp:64, mpg:30.0, ppg:18.5, rpg:3.8, apg:4.5, spg:0.9, bpg:0.4, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Khris Middleton', no:22, pos:'SF', gp:55, mpg:24.0, ppg:12.0, rpg:4.0, apg:4.0, spg:0.8, bpg:0.2, fg:45.0, tp:37.0, ft:88.0 },
+    { n:'Tristan Vukcevic', no:0, pos:'PF', gp:60, mpg:18.0, ppg:8.5, rpg:4.5, apg:1.2, spg:0.4, bpg:0.5, fg:47.0, tp:35.0, ft:78.0 },
+    { n:'Corey Kispert', no:24, pos:'SF', gp:62, mpg:22.0, ppg:9.0, rpg:2.8, apg:1.5, spg:0.5, bpg:0.2, fg:45.0, tp:38.0, ft:82.0 },
+    { n:'Marcus Smart', no:36, pos:'PG', gp:50, mpg:22.0, ppg:9.0, rpg:2.8, apg:4.5, spg:1.5, bpg:0.3, fg:42.0, tp:34.0, ft:80.0 },
+    { n:'Cam Whitmore', no:7, pos:'SF', gp:58, mpg:20.0, ppg:11.0, rpg:3.8, apg:1.2, spg:0.6, bpg:0.3, fg:45.0, tp:34.0, ft:78.0 },
+    { n:'Tre Johnson', no:2, pos:'SG', gp:65, mpg:24.0, ppg:14.0, rpg:3.0, apg:2.5, spg:0.7, bpg:0.2, fg:43.0, tp:36.0, ft:84.0 },
+    { n:'AJ Johnson', no:25, pos:'PG', gp:48, mpg:14.0, ppg:6.0, rpg:1.8, apg:2.2, spg:0.5, bpg:0.2, fg:42.0, tp:33.0, ft:78.0 },
+    { n:'Justin Champagnie', no:11, pos:'SF', gp:45, mpg:13.0, ppg:4.5, rpg:3.0, apg:0.8, spg:0.5, bpg:0.2, fg:46.0, tp:35.0, ft:72.0 },
+    { n:'Kyshawn George', no:18, pos:'SF', gp:62, mpg:22.0, ppg:9.0, rpg:4.0, apg:3.0, spg:1.0, bpg:0.5, fg:42.0, tp:35.0, ft:80.0 }
+  ]
+}
+  };
+
   function normalizeName(s) {
     return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -343,6 +1012,7 @@
         }
         el.classList.add('visible');
       }
+      if (miniEl) miniEl.classList.toggle('has-roster', !!ROSTERS[team.id]);
       if (seedEl) {
         if (team.seed) {
           seedEl.textContent = team.seed;
@@ -358,6 +1028,7 @@
         el.removeAttribute('src');
         delete el.dataset.tid;
       }
+      if (miniEl) miniEl.classList.remove('has-roster');
       if (seedEl) {
         seedEl.textContent = '';
         seedEl.classList.remove('visible');
@@ -818,6 +1489,86 @@
     if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock();
   });
   requestWakeLock();
+
+  // --- Player roster / stats modal ---
+  const teamById = Object.fromEntries(TEAMS.map(t => [t.id, t]));
+  const modal = document.getElementById('playerModal');
+  const modalBody = document.getElementById('modalBody');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalLogo = document.getElementById('modalLogo');
+  const modalBack = document.getElementById('modalBack');
+  const modalClose = document.getElementById('modalClose');
+  let modalTeamId = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  }
+  const POS_NAME = { PG:'Point Guard', SG:'Shooting Guard', SF:'Small Forward', PF:'Power Forward', C:'Center' };
+
+  function showRosterList() {
+    const data = ROSTERS[modalTeamId];
+    modalBack.style.display = 'none';
+    modalTitle.innerHTML = `${esc(data.city)} ${esc(data.name)}<small>${data.players.length} spelers · tik op een speler</small>`;
+    modalBody.innerHTML = data.players.map((p, i) =>
+      `<div class="roster-row" data-idx="${i}">
+         <span class="roster-no">${esc(p.no)}</span>
+         <span class="roster-name">${esc(p.n)}</span>
+         <span class="roster-pos">${esc(p.pos)}</span>
+         <span class="roster-pts">${p.ppg.toFixed(1)} ppg</span>
+       </div>`).join('');
+    modalBody.scrollTop = 0;
+  }
+
+  function showPlayer(idx) {
+    const data = ROSTERS[modalTeamId];
+    const p = data.players[idx];
+    if (!p) return;
+    modalBack.style.display = '';
+    modalTitle.innerHTML = `${esc(data.city)} ${esc(data.name)}<small>Statistieken 2025-26</small>`;
+    const cells = [
+      ['PPG', p.ppg.toFixed(1)], ['RPG', p.rpg.toFixed(1)], ['APG', p.apg.toFixed(1)],
+      ['SPG', p.spg.toFixed(1)], ['BPG', p.bpg.toFixed(1)], ['MPG', p.mpg.toFixed(1)],
+      ['FG%', p.fg.toFixed(1)], ['3P%', p.tp.toFixed(1)], ['FT%', p.ft.toFixed(1)],
+      ['GP', String(p.gp)]
+    ];
+    modalBody.innerHTML =
+      `<div class="player-detail">
+         <h3>${esc(p.n)}</h3>
+         <div class="meta">#${esc(p.no)} · ${esc(POS_NAME[p.pos] || p.pos)}</div>
+         <div class="stat-grid">
+           ${cells.map(([l, v]) => `<div class="stat-cell"><div class="val">${esc(v)}</div><div class="lbl">${esc(l)}</div></div>`).join('')}
+         </div>
+       </div>`;
+    modalBody.scrollTop = 0;
+  }
+
+  function openRoster(teamId) {
+    if (!ROSTERS[teamId]) return;
+    modalTeamId = teamId;
+    const team = teamById[teamId];
+    if (team) modalLogo.src = team.logo; else modalLogo.removeAttribute('src');
+    showRosterList();
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal() {
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    modalTeamId = null;
+  }
+
+  modalBody.addEventListener('click', e => {
+    const row = e.target.closest('.roster-row');
+    if (row) showPlayer(parseInt(row.dataset.idx, 10));
+  });
+  modalBack.addEventListener('click', showRosterList);
+  modalClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('show')) closeModal(); });
+
+  logoMiniA.addEventListener('click', () => { if (logoMiniA.dataset.tid) openRoster(logoMiniA.dataset.tid); });
+  logoMiniB.addEventListener('click', () => { if (logoMiniB.dataset.tid) openRoster(logoMiniB.dataset.tid); });
 
   load();
   render();
