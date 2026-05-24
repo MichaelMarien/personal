@@ -100,6 +100,16 @@
     display: none;
   }
   .logo-mini.visible { display: block; }
+  .seed {
+    flex: 0 0 auto; align-self: center; display: none;
+    min-width: 22px; height: 22px; padding: 0 5px;
+    align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: #0b1020; background: rgba(255,255,255,0.92);
+    border-radius: 6px;
+  }
+  .seed.visible { display: inline-flex; }
   .score {
     font-size: clamp(110px, 28vh, 240px);
     font-weight: 900; line-height: 1; margin: 6px 0;
@@ -164,13 +174,14 @@
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
-    <div class="version" aria-hidden="true">v4 · 2026-05-03</div>
+    <div class="version" aria-hidden="true">v5 · 2026-05-24</div>
   </div>
 
   <div class="teams">
     <div class="team home">
       <img class="logo" id="logoA" alt="" />
       <div class="name-row">
+        <span class="seed" id="seedA" aria-hidden="true"></span>
         <img class="logo-mini" id="logoMiniA" alt="" />
         <input class="name" id="nameA" value="HOME" placeholder="Tap to name" maxlength="30" />
         <button class="clear" data-clear="A" aria-label="Clear home name">×</button>
@@ -187,6 +198,7 @@
       <img class="logo" id="logoB" alt="" />
       <div class="name-row">
         <img class="logo-mini" id="logoMiniB" alt="" />
+        <span class="seed" id="seedB" aria-hidden="true"></span>
         <input class="name" id="nameB" value="AWAY" placeholder="Tap to name" maxlength="30" />
         <button class="clear" data-clear="B" aria-label="Clear away name">×</button>
       </div>
@@ -219,41 +231,43 @@
   const logoB = document.getElementById('logoB');
   const logoMiniA = document.getElementById('logoMiniA');
   const logoMiniB = document.getElementById('logoMiniB');
+  const seedA = document.getElementById('seedA');
+  const seedB = document.getElementById('seedB');
 
   // --- Team logos via fuzzy name match. NBA via ESPN CDN, BNXT/local bundled. ---
   const nba = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`;
   const TEAMS = [
-    // NBA
-    { id: 'atl', logo: nba('atl'), names: ['atlanta hawks', 'hawks', 'atlanta', 'atl'] },
-    { id: 'bos', logo: nba('bos'), names: ['boston celtics', 'celtics', 'boston', 'bos'] },
-    { id: 'bkn', logo: nba('bkn'), names: ['brooklyn nets', 'nets', 'brooklyn', 'bkn', 'bro'] },
-    { id: 'cha', logo: nba('cha'), names: ['charlotte hornets', 'hornets', 'charlotte', 'cha', 'cho'] },
-    { id: 'chi', logo: nba('chi'), names: ['chicago bulls', 'bulls', 'chicago', 'chi'] },
-    { id: 'cle', logo: nba('cle'), names: ['cleveland cavaliers', 'cavaliers', 'cavs', 'cleveland', 'cle'] },
-    { id: 'dal', logo: nba('dal'), names: ['dallas mavericks', 'mavericks', 'mavs', 'dallas', 'dal'] },
-    { id: 'den', logo: nba('den'), names: ['denver nuggets', 'nuggets', 'denver', 'den'] },
-    { id: 'det', logo: nba('det'), names: ['detroit pistons', 'pistons', 'detroit', 'det'] },
-    { id: 'gs',  logo: nba('gs'),  names: ['golden state warriors', 'warriors', 'golden state', 'gsw', 'gs'] },
-    { id: 'hou', logo: nba('hou'), names: ['houston rockets', 'rockets', 'houston', 'hou'] },
-    { id: 'ind', logo: nba('ind'), names: ['indiana pacers', 'pacers', 'indiana', 'ind'] },
-    { id: 'lac', logo: nba('lac'), names: ['los angeles clippers', 'la clippers', 'clippers', 'lac'] },
-    { id: 'lal', logo: nba('lal'), names: ['los angeles lakers', 'la lakers', 'lakers', 'lal'] },
-    { id: 'mem', logo: nba('mem'), names: ['memphis grizzlies', 'grizzlies', 'memphis', 'mem'] },
-    { id: 'mia', logo: nba('mia'), names: ['miami heat', 'heat', 'miami', 'mia'] },
-    { id: 'mil', logo: nba('mil'), names: ['milwaukee bucks', 'bucks', 'milwaukee', 'mil'] },
-    { id: 'min', logo: nba('min'), names: ['minnesota timberwolves', 'timberwolves', 'wolves', 'minnesota', 'min'] },
-    { id: 'no',  logo: nba('no'),  names: ['new orleans pelicans', 'pelicans', 'new orleans', 'nop'] },
-    { id: 'ny',  logo: nba('ny'),  names: ['new york knicks', 'knicks', 'new york', 'nyk'] },
-    { id: 'okc', logo: nba('okc'), names: ['oklahoma city thunder', 'thunder', 'oklahoma city', 'oklahoma', 'okc'] },
-    { id: 'orl', logo: nba('orl'), names: ['orlando magic', 'magic', 'orlando', 'orl'] },
-    { id: 'phi', logo: nba('phi'), names: ['philadelphia 76ers', '76ers', 'sixers', 'philadelphia', 'phi'] },
-    { id: 'phx', logo: nba('phx'), names: ['phoenix suns', 'suns', 'phoenix', 'phx', 'pho'] },
-    { id: 'por', logo: nba('por'), names: ['portland trail blazers', 'trail blazers', 'blazers', 'portland', 'por'] },
-    { id: 'sac', logo: nba('sac'), names: ['sacramento kings', 'kings', 'sacramento', 'sac'] },
-    { id: 'sa',  logo: nba('sa'),  names: ['san antonio spurs', 'spurs', 'san antonio', 'sas'] },
-    { id: 'tor', logo: nba('tor'), names: ['toronto raptors', 'raptors', 'toronto', 'tor'] },
-    { id: 'utah', logo: nba('utah'), names: ['utah jazz', 'jazz', 'utah', 'uta'] },
-    { id: 'wsh', logo: nba('wsh'), names: ['washington wizards', 'wizards', 'washington', 'was', 'wsh'] },
+    // NBA — `seed` is the team's final 2025-26 regular-season rank in its conference (1-15).
+    { id: 'atl', logo: nba('atl'), seed: 6,  names: ['atlanta hawks', 'hawks', 'atlanta', 'atl'] },
+    { id: 'bos', logo: nba('bos'), seed: 2,  names: ['boston celtics', 'celtics', 'boston', 'bos'] },
+    { id: 'bkn', logo: nba('bkn'), seed: 13, names: ['brooklyn nets', 'nets', 'brooklyn', 'bkn', 'bro'] },
+    { id: 'cha', logo: nba('cha'), seed: 9,  names: ['charlotte hornets', 'hornets', 'charlotte', 'cha', 'cho'] },
+    { id: 'chi', logo: nba('chi'), seed: 12, names: ['chicago bulls', 'bulls', 'chicago', 'chi'] },
+    { id: 'cle', logo: nba('cle'), seed: 4,  names: ['cleveland cavaliers', 'cavaliers', 'cavs', 'cleveland', 'cle'] },
+    { id: 'dal', logo: nba('dal'), seed: 12, names: ['dallas mavericks', 'mavericks', 'mavs', 'dallas', 'dal'] },
+    { id: 'den', logo: nba('den'), seed: 3,  names: ['denver nuggets', 'nuggets', 'denver', 'den'] },
+    { id: 'det', logo: nba('det'), seed: 1,  names: ['detroit pistons', 'pistons', 'detroit', 'det'] },
+    { id: 'gs',  logo: nba('gs'),  seed: 10, names: ['golden state warriors', 'warriors', 'golden state', 'gsw', 'gs'] },
+    { id: 'hou', logo: nba('hou'), seed: 5,  names: ['houston rockets', 'rockets', 'houston', 'hou'] },
+    { id: 'ind', logo: nba('ind'), seed: 14, names: ['indiana pacers', 'pacers', 'indiana', 'ind'] },
+    { id: 'lac', logo: nba('lac'), seed: 9,  names: ['los angeles clippers', 'la clippers', 'clippers', 'lac'] },
+    { id: 'lal', logo: nba('lal'), seed: 4,  names: ['los angeles lakers', 'la lakers', 'lakers', 'lal'] },
+    { id: 'mem', logo: nba('mem'), seed: 13, names: ['memphis grizzlies', 'grizzlies', 'memphis', 'mem'] },
+    { id: 'mia', logo: nba('mia'), seed: 10, names: ['miami heat', 'heat', 'miami', 'mia'] },
+    { id: 'mil', logo: nba('mil'), seed: 11, names: ['milwaukee bucks', 'bucks', 'milwaukee', 'mil'] },
+    { id: 'min', logo: nba('min'), seed: 6,  names: ['minnesota timberwolves', 'timberwolves', 'wolves', 'minnesota', 'min'] },
+    { id: 'no',  logo: nba('no'),  seed: 11, names: ['new orleans pelicans', 'pelicans', 'new orleans', 'nop'] },
+    { id: 'ny',  logo: nba('ny'),  seed: 3,  names: ['new york knicks', 'knicks', 'new york', 'nyk'] },
+    { id: 'okc', logo: nba('okc'), seed: 1,  names: ['oklahoma city thunder', 'thunder', 'oklahoma city', 'oklahoma', 'okc'] },
+    { id: 'orl', logo: nba('orl'), seed: 8,  names: ['orlando magic', 'magic', 'orlando', 'orl'] },
+    { id: 'phi', logo: nba('phi'), seed: 7,  names: ['philadelphia 76ers', '76ers', 'sixers', 'philadelphia', 'phi'] },
+    { id: 'phx', logo: nba('phx'), seed: 7,  names: ['phoenix suns', 'suns', 'phoenix', 'phx', 'pho'] },
+    { id: 'por', logo: nba('por'), seed: 8,  names: ['portland trail blazers', 'trail blazers', 'blazers', 'portland', 'por'] },
+    { id: 'sac', logo: nba('sac'), seed: 14, names: ['sacramento kings', 'kings', 'sacramento', 'sac'] },
+    { id: 'sa',  logo: nba('sa'),  seed: 2,  names: ['san antonio spurs', 'spurs', 'san antonio', 'sas'] },
+    { id: 'tor', logo: nba('tor'), seed: 5,  names: ['toronto raptors', 'raptors', 'toronto', 'tor'] },
+    { id: 'utah', logo: nba('utah'), seed: 15, names: ['utah jazz', 'jazz', 'utah', 'uta'] },
+    { id: 'wsh', logo: nba('wsh'), seed: 15, names: ['washington wizards', 'wizards', 'washington', 'was', 'wsh'] },
     // BNXT — Belgian division
     { id: 'oostende', logo: 'logos/oostende.png', names: ['filou oostende', 'bc oostende', 'oostende', 'ostend', 'ostende'] },
     { id: 'leuven-bears', logo: 'logos/leuven-bears.png', names: ['stella artois leuven bears', 'leuven bears', 'bears leuven', 'leuven'] },
@@ -318,7 +332,7 @@
     return best;
   }
 
-  function updateLogo(input, imgEl, miniEl) {
+  function updateLogo(input, imgEl, miniEl, seedEl) {
     const team = findTeam(input.value);
     const els = miniEl ? [imgEl, miniEl] : [imgEl];
     if (team) {
@@ -329,11 +343,24 @@
         }
         el.classList.add('visible');
       }
+      if (seedEl) {
+        if (team.seed) {
+          seedEl.textContent = team.seed;
+          seedEl.classList.add('visible');
+        } else {
+          seedEl.textContent = '';
+          seedEl.classList.remove('visible');
+        }
+      }
     } else {
       for (const el of els) {
         el.classList.remove('visible');
         el.removeAttribute('src');
         delete el.dataset.tid;
+      }
+      if (seedEl) {
+        seedEl.textContent = '';
+        seedEl.classList.remove('visible');
       }
     }
   }
@@ -557,8 +584,8 @@
     render();
   });
 
-  nameA.addEventListener('input', () => { updateLogo(nameA, logoA, logoMiniA); save(); });
-  nameB.addEventListener('input', () => { updateLogo(nameB, logoB, logoMiniB); save(); });
+  nameA.addEventListener('input', () => { updateLogo(nameA, logoA, logoMiniA, seedA); save(); });
+  nameB.addEventListener('input', () => { updateLogo(nameB, logoB, logoMiniB, seedB); save(); });
 
   document.querySelectorAll('button[data-clear]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -566,8 +593,9 @@
       const input = which === 'A' ? nameA : nameB;
       const img = which === 'A' ? logoA : logoB;
       const mini = which === 'A' ? logoMiniA : logoMiniB;
+      const seed = which === 'A' ? seedA : seedB;
       input.value = '';
-      updateLogo(input, img, mini);
+      updateLogo(input, img, mini, seed);
       save();
       input.focus();
     });
@@ -794,8 +822,8 @@
   load();
   render();
   renderClock();
-  updateLogo(nameA, logoA, logoMiniA);
-  updateLogo(nameB, logoB, logoMiniB);
+  updateLogo(nameA, logoA, logoMiniA, seedA);
+  updateLogo(nameB, logoB, logoMiniB, seedB);
 </script>
 </body>
 </html>
