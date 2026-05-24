@@ -218,10 +218,21 @@
     color: #0b1020; background: rgba(255,255,255,0.85); border-radius: 6px; padding: 2px 7px;
   }
   .roster-pts { flex: 0 0 auto; width: 64px; text-align: right; font-size: 13px; opacity: 0.7; font-variant-numeric: tabular-nums; }
+  /* Player headshot avatar (ESPN cutout PNG); falls back to initials if image missing. */
+  .av {
+    flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+    background: #222c46; border: 1px solid #2c3a5e; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #93c5fd; letter-spacing: 0.5px;
+  }
+  .av img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+  .av-lg { width: 104px; height: 104px; font-size: 32px; border-width: 2px; margin: 0 auto 14px; }
   .player-detail { padding: 16px 14px; }
   .player-detail h3 { margin: 0 0 3px; font-size: 23px; display: flex; align-items: center; gap: 9px; }
   .player-detail h3 .pflag { font-size: 28px; line-height: 1; }
+  .player-detail h3.ctr { justify-content: center; }
   .player-detail .meta { font-size: 14px; opacity: 0.7; margin-bottom: 16px; }
+  .player-detail .meta.ctr { text-align: center; }
   .bio-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
   .bio-cell { background: #1a2237; border-radius: 10px; padding: 12px 8px; text-align: center; }
   .bio-cell .val { font-size: 19px; font-weight: 800; }
@@ -983,6 +994,40 @@
 
   };
 
+  // ESPN athlete ids (verified) -> https://a.espncdn.com/i/headshots/nba/players/full/<id>.png
+  const HEADSHOTS = {
+    'atl': {"Jalen Johnson":4701230, "Dyson Daniels":4869342, "Zaccharie Risacher":5211175, "Onyeka Okongwu":4431680, "Nickeil Alexander-Walker":4278039, "Mouhamed Gueye":4712863, "Asa Newell":4873201, "Keaton Wallace":4279118, "Trae Young":4277905, "Kristaps Porzingis":3102531, "Luke Kennard":3913174, "Vit Krejci":4578893, "Terance Mann":3907823, "Caris LeVert":2991043, "N'Faly Dante":4592401},
+    'bos': {"Jayson Tatum":4065648, "Jaylen Brown":3917376, "Derrick White":3078576, "Payton Pritchard":4066354, "Sam Hauser":4065804, "Neemias Queta":4397424, "Jordan Walsh":4683689, "Baylor Scheierman":4593841, "Luka Garza":4277951, "Hugo Gonzalez":5175647, "Anfernee Simons":4351851, "Josh Minott":4687718, "Xavier Tillman":4277964, "Chris Boucher":3948153, "JD Davison":4576085},
+    'bkn': {"Michael Porter Jr.":4278104, "Nic Claxton":4278067, "Egor Demin":5175643, "Terance Mann":3907823, "Ziaire Williams":4433137, "Day'Ron Sharpe":4432194, "Nolan Traore":5279130, "Noah Clowney":4712896, "Drake Powell":5037873, "Danny Wolf":5107173, "Jalen Wilson":4431714, "Ben Saraf":5242502, "Cam Thomas":4432174, "Tyrese Martin":4397179, "Dariq Whitehead":4432735},
+    'cha': {"LaMelo Ball":4432816, "Brandon Miller":4433287, "Miles Bridges":4066383, "Kon Knueppel":5061575, "Ryan Kalkbrenner":4576060, "Tre Mann":4432819, "Josh Green":4432811, "Moussa Diabate":4433249, "Grant Williams":4066218, "Sion James":4602025, "Liam McNeeley":5239590, "Collin Sexton":4277811, "Mason Plumlee":2488653, "KJ Simpson":4683834},
+    'chi': {"Josh Giddey":4871145, "Matas Buzelis":4711294, "Patrick Williams":4431687, "Tre Jones":4395626, "Jalen Smith":4397189, "Isaac Okoro":4432822, "Noa Essengue":5242496, "Zach Collins":4066650, "Yuki Kawamura":5159895, "Coby White":4395651, "Nikola Vucevic":6478, "Ayo Dosunmu":4397002, "Kevin Huerter":4066372, "Dalen Terry":4433159, "Julian Phillips":5105553},
+    'cle': {"Donovan Mitchell":3908809, "Evan Mobley":4432158, "Jarrett Allen":4066328, "Max Strus":4065778, "Sam Merrill":4066757, "Dean Wade":3912848, "Craig Porter Jr.":4701233, "Jaylon Tyson":4683747, "Larry Nance Jr.":2580365, "Nae'Qwan Tomlin":5106268, "Thomas Bryant":3934723, "Darius Garland":4396907, "De'Andre Hunter":4065732, "Lonzo Ball":4066421, "Tristan Thompson":6474},
+    'dal': {"Cooper Flagg":5041939, "Kyrie Irving":6442, "P.J. Washington":4278078, "Daniel Gafford":4278049, "Dereck Lively II":4683688, "Klay Thompson":6475, "Naji Marshall":4278594, "Max Christie":4432582, "Caleb Martin":3138160, "Brandon Williams":4397040, "Dwight Powell":2531367, "Anthony Davis":6583, "D'Angelo Russell":3136776, "Olivier-Maxence Prosper":4595400},
+    'den': {"Nikola Jokic":3112335, "Jamal Murray":3936299, "Aaron Gordon":3064290, "Christian Braun":4431767, "Cameron Johnson":3138196, "Tim Hardaway Jr.":2528210, "Peyton Watson":4576087, "Jonas Valanciunas":6477, "Bruce Brown":4065670, "Julian Strawther":4432181, "Zeke Nnaji":4431690, "DaRon Holmes II":4433607, "Michael Porter Jr.":4278104, "Hunter Tyson":4395620},
+    'det': {"Cade Cunningham":4432166, "Jalen Duren":4433621, "Tobias Harris":6440, "Ausar Thompson":4684742, "Duncan Robinson":3157465, "Isaiah Stewart":4432810, "Marcus Sasser":4432107, "Paul Reed":4278562, "Daniss Jenkins":5107199, "Wendell Moore Jr.":4592187, "Jaden Ivey":4433218, "Malik Beasley":3907822, "Bobi Klintman":4906923, "Ron Holland II":4683771},
+    'gs': {"Stephen Curry":3975, "Jimmy Butler":6430, "Draymond Green":6589, "Brandin Podziemski":4709138, "Moses Moody":4432171, "Quinten Post":4593016, "Gary Payton II":3134903, "De'Anthony Melton":4066436, "Pat Spencer":4592714, "Gui Santos":4997536, "Buddy Hield":2990984, "Jonathan Kuminga":4433247, "Trayce Jackson-Davis":4431684, "Kevon Looney":3155535},
+    'hou': {"Kevin Durant":3202, "Alperen Sengun":4871144, "Amen Thompson":4684740, "Jalen Green":4437244, "Fred VanVleet":2991230, "Steven Adams":2991235, "Tari Eason":4433192, "Jabari Smith Jr.":4432639, "Reed Sheppard":4711272, "Aaron Holiday":3922230, "Jae'Sean Tate":3136777, "Jeff Green":3209, "Dillon Brooks":3155526, "Cam Whitmore":5105592},
+    'ind': {"Tyrese Haliburton":4396993, "Pascal Siakam":3149673, "Andrew Nembhard":4395712, "Aaron Nesmith":4396909, "Obi Toppin":4278355, "T.J. McConnell":2530530, "Ben Sheppard":4433076, "Isaiah Jackson":4432170, "Jarace Walker":5106060, "Quenton Jackson":4592829, "Johnny Furphy":5157066, "Myles Turner":3133628, "Bennedict Mathurin":4683634, "Tony Bradley":4065673, "James Wiseman":4432808},
+    'lac': {"Kawhi Leonard":6450, "Derrick Jones Jr.":3936099, "Kris Dunn":2991139, "Bogdan Bogdanovic":3037789, "Nicolas Batum":3416, "Brook Lopez":3448, "John Collins":3908845, "Jordan Miller":4396818, "Cam Christie":4845363, "James Harden":3992, "Norman Powell":2595516, "Ivica Zubac":4017837, "Kobe Brown":4431752, "Patrick Baldwin Jr.":4433246, "Ben Simmons":3907387},
+    'lal': {"Luka Doncic":3945274, "LeBron James":1966, "Austin Reaves":4066457, "Rui Hachimura":4066648, "Deandre Ayton":4278129, "Dalton Knecht":4897943, "Jarred Vanderbilt":4278077, "Maxi Kleber":2960236, "Jaxson Hayes":4397077, "Bronny James":4683774, "Gabe Vincent":3137259, "Jordan Goodwin":4278402, "Shake Milton":3915195, "Christian Koloko":4431778, "Markieff Morris":6461},
+    'mem': {"Ja Morant":4279888, "Jaren Jackson Jr.":4277961, "Zach Edey":4600663, "Jaylen Wells":5112087, "Scotty Pippen Jr.":4431785, "Santi Aldama":4593125, "Cam Spencer":4433083, "GG Jackson":5105550, "Desmond Bane":4066320, "Marcus Smart":2990992, "Brandon Clarke":3906665, "John Konchar":3134932, "Vince Williams Jr.":4397227, "Jay Huff":4065731, "PJ Hall":4701225},
+    'mia': {"Tyler Herro":4395725, "Bam Adebayo":4066261, "Andrew Wiggins":3059319, "Norman Powell":2595516, "Kel'el Ware":5105623, "Davion Mitchell":4278053, "Nikola Jovic":4997528, "Pelle Larsson":4601025, "Jaime Jaquez Jr.":4432848, "Keshad Johnson":4431786, "Dru Smith":4066993, "Haywood Highsmith":4291678, "Terry Rozier":3074752, "Kevin Love":3449, "Duncan Robinson":3157465},
+    'mil': {"Giannis Antetokounmpo":3032977, "Kyle Kuzma":3134907, "Myles Turner":3133628, "Kevin Porter Jr.":4397140, "Gary Trent Jr.":4277843, "Bobby Portis":3064482, "AJ Green":4397475, "Ryan Rollins":4591725, "Taurean Prince":2990962, "Andre Jackson Jr.":4432190, "Jericho Sims":4277922, "Pat Connaughton":2578239, "Tyler Smith":5167876},
+    'min': {"Anthony Edwards":4594268, "Julius Randle":3064514, "Rudy Gobert":3032976, "Jaden McDaniels":4431671, "Donte DiVincenzo":3934673, "Naz Reid":4396971, "Mike Conley":3195, "Terrence Shannon Jr.":4432847, "Jaylen Clark":4432247, "Joan Beringer":5279133, "Bones Hyland":4592492, "Rob Dillingham":4684275, "Luka Garza":4277951, "Leonard Miller":5044385, "Josh Minott":4687718},
+    'no': {"Zion Williamson":4395628, "Dejounte Murray":3907497, "Trey Murphy III":4397688, "Jordan Poole":4277956, "Herbert Jones":4277813, "Yves Missi":5061589, "Jeremiah Fears":5144091, "Saddiq Bey":4397136, "Karlo Matkovic":4997538, "Jordan Hawkins":4683750, "Micah Peavy":4432185, "CJ McCollum":2490149, "Kelly Olynyk":2489663, "Jose Alvarado":4277869, "Antonio Reeves":4592686},
+    'ny': {"Jalen Brunson":3934672, "Karl-Anthony Towns":3136195, "Mikal Bridges":3147657, "OG Anunoby":3934719, "Josh Hart":3062679, "Mitchell Robinson":4351852, "Jordan Clarkson":2528426, "Mohamed Diawara":5289900, "Pacome Dadiet":5211983, "Tyler Kolek":4433225, "Ariel Hukporti":4871141, "Landry Shamet":3914044, "Guerschon Yabusele":4017844, "Pat Spencer":4592714, "Deuce McBride":4431823},
+    'okc': {"Shai Gilgeous-Alexander":4278073, "Jalen Williams":4593803, "Chet Holmgren":4433255, "Luguentz Dort":4397020, "Isaiah Hartenstein":4222252, "Cason Wallace":4683692, "Aaron Wiggins":4397183, "Isaiah Joe":4395702, "Alex Caruso":2991350, "Ajay Mitchell":4900671, "Kenrich Williams":3133626, "Jaylin Williams":4432823, "Nikola Topic":5159925, "Branden Carlson":4592435, "Ousmane Dieng":4997526},
+    'orl': {"Paolo Banchero":4432573, "Franz Wagner":4566434, "Desmond Bane":4066320, "Jalen Suggs":4432165, "Wendell Carter Jr.":4277847, "Anthony Black":4712849, "Jonathan Isaac":4065654, "Tristan da Silva":4702382, "Goga Bitadze":4348700, "Jase Richardson":5239561, "Noah Penda":5214637, "Jett Howard":5105806, "Colin Castleton":4397204, "Kentavious Caldwell-Pope":2581018, "Tyus Jones":3135046},
+    'phi': {"Tyrese Maxey":4431678, "Joel Embiid":3059318, "Paul George":4251, "VJ Edgecombe":5124612, "Quentin Grimes":4397014, "Kelly Oubre Jr.":3133603, "Andre Drummond":6585, "Justin Edwards":4711297, "Adem Bona":5105637, "Trendon Watford":4431675, "Dominick Barlow":4870562, "Jabari Walker":4432446, "Johni Broome":4433569, "Jared McCain":4683778, "Eric Gordon":3431},
+    'phx': {"Devin Booker":3136193, "Jalen Green":4437244, "Dillon Brooks":3155526, "Mark Williams":4701232, "Grayson Allen":3135045, "Ryan Dunn":4888725, "Collin Gillespie":4278585, "Royce O'Neale":2583632, "Jordan Goodwin":4278402, "Oso Ighodaro":4601023, "Rasheer Fleming":5105977, "Khaman Maluach":5203685, "Nick Richards":4278076, "Jared Butler":4395695, "Nigel Hayes-Davis":3059409},
+    'por': {"Deni Avdija":4683021, "Jerami Grant":2991070, "Shaedon Sharpe":4914336, "Scoot Henderson":4683678, "Donovan Clingan":5105565, "Toumani Camara":4431736, "Jrue Holiday":3995, "Robert Williams III":4066211, "Matisse Thybulle":3907498, "Kris Murray":4594326, "Sidy Cissoko":5081727, "Rayan Rupert":5099752, "Dalano Banton":4397885},
+    'sac': {"DeMar DeRozan":3978, "Domantas Sabonis":3155942, "Zach LaVine":3064440, "Malik Monk":4066262, "Keegan Murray":4594327, "Devin Carter":4433188, "Doug McDermott":2528588, "Maxime Raynaud":4898371, "Keon Ellis":4702177, "Jonas Valanciunas":6477, "Isaac Jones":5107818, "Jordan McLaughlin":3134916, "Terence Davis":3919454},
+    'sa': {"Victor Wembanyama":5104157, "De'Aaron Fox":4066259, "Stephon Castle":4845367, "Harrison Barnes":6578, "Devin Vassell":4395630, "Julian Champagnie":4592479, "Keldon Johnson":4395723, "Luke Kornet":3064560, "Dylan Harper":5037871, "Carter Bryant":5061568, "Bismack Biyombo":6427, "Jeremy Sochan":4610139, "Chris Paul":2779, "Blake Wesley":4683935, "Charles Bassey":4397886},
+    'tor': {"Scottie Barnes":4433134, "RJ Barrett":4395625, "Immanuel Quickley":4395724, "Brandon Ingram":3913176, "Jakob Poeltl":3134908, "Gradey Dick":5106258, "Ja'Kobe Walter":4684272, "Jamal Shead":4432241, "Jonathan Mogbo":5107897, "Collin Murray-Boyles":5093267, "Jamison Battle":4431893, "Ochai Agbaji":4397018, "Chris Boucher":3948153, "Kelly Olynyk":2489663},
+    'utah': {"Lauri Markkanen":4066336, "Keyonte George":4433627, "Walker Kessler":4433136, "Isaiah Collier":4683766, "Brice Sensabaugh":5105839, "Ace Bailey":4873138, "Cody Williams":4895758, "Svi Mykhailiuk":3133602, "Kyle Filipowski":4684793, "Jusuf Nurkic":3102530, "Elijah Harkless":4397449, "Collin Sexton":4277811, "John Collins":3908845, "Taylor Hendricks":4684806},
+    'wsh': {"Alex Sarr":5160992, "Bilal Coulibaly":5104155, "Bub Carrington":4845374, "Tristan Vukcevic":4997537, "Cam Whitmore":5105592, "Tre Johnson":5238230, "AJ Johnson":5170947, "Justin Champagnie":4432907, "Kyshawn George":5174563, "Jordan Poole":4277956, "Kyle Kuzma":3134907, "CJ McCollum":2490149, "Khris Middleton":6609, "Corey Kispert":4280151, "Marcus Smart":2990992},
+  };
+
   function normalizeName(s) {
     return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1554,6 +1599,19 @@
   }
   function lengte(cm) { return (cm / 100).toFixed(2).replace('.', ',') + ' m'; }
 
+  // Player headshot via ESPN id map. The initials sit behind the photo, which
+  // covers them once loaded — and re-appear if the image is missing or 404s.
+  function initials(name) {
+    return name.split(/[\s-]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  }
+  function avatar(name, cls) {
+    const id = (HEADSHOTS[modalTeamId] || {})[name];
+    const img = id
+      ? `<img src="https://a.espncdn.com/i/headshots/nba/players/full/${id}.png" alt="" loading="lazy" onerror="this.remove()">`
+      : '';
+    return `<div class="av ${cls}">${esc(initials(name))}${img}</div>`;
+  }
+
   function showRosterList() {
     const data = ROSTERS[modalTeamId];
     modalBack.style.display = 'none';
@@ -1561,6 +1619,7 @@
     modalBody.innerHTML = data.players.map((p, i) =>
       `<div class="roster-row" data-idx="${i}">
          <span class="roster-no">${esc(p.no)}</span>
+         ${avatar(p.n, '')}
          <span class="roster-flag">${flag(p.nat)}</span>
          <span class="roster-name">${esc(p.n)}</span>
          <span class="roster-pos">${esc(p.pos)}</span>
@@ -1587,8 +1646,9 @@
     ];
     modalBody.innerHTML =
       `<div class="player-detail">
-         <h3><span class="pflag">${flag(p.nat)}</span>${esc(p.n)}</h3>
-         <div class="meta">#${esc(p.no)} · ${esc(POS_NAME[p.pos] || p.pos)}</div>
+         ${avatar(p.n, 'av-lg')}
+         <h3 class="ctr"><span class="pflag">${flag(p.nat)}</span>${esc(p.n)}</h3>
+         <div class="meta ctr">#${esc(p.no)} · ${esc(POS_NAME[p.pos] || p.pos)}</div>
          <div class="bio-row">
            ${bio.map(([cls, v, l]) => `<div class="bio-cell"><div class="val ${cls}">${esc(v)}</div><div class="lbl">${esc(l)}</div></div>`).join('')}
          </div>
