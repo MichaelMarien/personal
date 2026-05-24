@@ -390,7 +390,19 @@
     { id: 'bavi-vilvoorde', logo: 'logos/bavi-vilvoorde.png', names: ['bavi vilvoorde', 'basketball vilvoorde', 'bavi', 'vilvoorde'] },
     // National teams (FIBA)
     { id: 'belgian-lions', logo: 'logos/belgian-lions.svg', names: ['belgian lions', 'belgium lions', 'lions', 'belgium', 'belgie', 'belgië', 'belgian'] },
-    { id: 'belgian-cats', logo: 'logos/belgian-cats.svg', names: ['belgian cats', 'belgium cats', 'cats', 'belgium women', 'belgische cats'] }
+    { id: 'belgian-cats', logo: 'logos/belgian-cats.svg', names: ['belgian cats', 'belgium cats', 'cats', 'belgium women', 'belgische cats'] },
+    { id: 'usa', logo: 'logos/usa.svg', names: ['team usa', 'usa', 'united states', 'america', 'us'] },
+    { id: 'canada', logo: 'logos/canada.svg', names: ['canada', 'canadian', 'can'] },
+    { id: 'australia', logo: 'logos/australia.svg', names: ['australia', 'boomers', 'aussie', 'aus'] },
+    { id: 'argentina', logo: 'logos/argentina.svg', names: ['argentina', 'argentinian', 'arg'] },
+    { id: 'germany', logo: 'logos/germany.svg', names: ['germany', 'deutschland', 'german', 'ger'] },
+    { id: 'france', logo: 'logos/france.svg', names: ['france', 'les bleus', 'bleus', 'french', 'fra'] },
+    { id: 'spain', logo: 'logos/spain.svg', names: ['spain', 'espana', 'españa', 'spanish', 'esp'] },
+    { id: 'serbia', logo: 'logos/serbia.svg', names: ['serbia', 'srbija', 'serbian', 'srb'] },
+    { id: 'greece', logo: 'logos/greece.svg', names: ['greece', 'hellas', 'greek', 'gre'] },
+    { id: 'slovenia', logo: 'logos/slovenia.svg', names: ['slovenia', 'slovenija', 'slovenian', 'slo'] },
+    { id: 'lithuania', logo: 'logos/lithuania.svg', names: ['lithuania', 'lietuva', 'lithuanian', 'ltu'] },
+    { id: 'italy', logo: 'logos/italy.svg', names: ['italy', 'italia', 'azzurri', 'italian', 'ita'] }
   ];
 
   // --- NBA rosters + per-game stats (static 2025-26 snapshot, frozen values). ---
@@ -1029,6 +1041,210 @@
     { n:'Marie Vervaet', no:13, pos:'PF', nat:'BE', h:186, w:80, gp:6, mpg:13.0, ppg:4.0, rpg:3.0, apg:0.8, spg:0.5, bpg:0.3, fg:46.0, tp:30.0, ft:72.0 },
     { n:'Ine Joris', no:7, pos:'SF', nat:'BE', h:187, w:78, gp:6, mpg:12.0, ppg:3.5, rpg:2.5, apg:1.0, spg:0.5, bpg:0.2, fg:44.0, tp:32.0, ft:74.0 }
   ]
+},
+'usa': {
+  city: 'Team', name: 'USA',
+  players: [
+    { n:'Stephen Curry', no:4, pos:'PG', nat:'US', h:188, w:84, gp:6, mpg:24.0, ppg:14.8, rpg:2.8, apg:4.5, spg:1.2, bpg:0.2, fg:46.0, tp:42.0, ft:92.0 },
+    { n:'Anthony Edwards', no:5, pos:'SG', nat:'US', h:193, w:102, gp:6, mpg:21.0, ppg:12.0, rpg:3.5, apg:2.0, spg:1.0, bpg:0.3, fg:48.0, tp:38.0, ft:80.0 },
+    { n:'LeBron James', no:6, pos:'SF', nat:'US', h:206, w:113, gp:6, mpg:25.0, ppg:14.2, rpg:6.8, apg:8.5, spg:1.3, bpg:0.5, fg:66.0, tp:42.0, ft:74.0 },
+    { n:'Kevin Durant', no:7, pos:'SF', nat:'US', h:208, w:109, gp:6, mpg:21.0, ppg:13.7, rpg:3.5, apg:1.8, spg:0.8, bpg:0.8, fg:52.0, tp:54.0, ft:88.0 },
+    { n:'Derrick White', no:8, pos:'SG', nat:'US', h:193, w:86, gp:6, mpg:18.0, ppg:6.5, rpg:2.0, apg:2.5, spg:1.0, bpg:0.6, fg:45.0, tp:40.0, ft:85.0 },
+    { n:'Tyrese Haliburton', no:9, pos:'PG', nat:'US', h:196, w:84, gp:6, mpg:12.0, ppg:4.0, rpg:1.5, apg:3.0, spg:0.8, bpg:0.1, fg:44.0, tp:38.0, ft:80.0 },
+    { n:'Jayson Tatum', no:10, pos:'SF', nat:'US', h:203, w:95, gp:6, mpg:15.0, ppg:7.0, rpg:4.0, apg:2.0, spg:0.7, bpg:0.5, fg:47.0, tp:36.0, ft:82.0 },
+    { n:'Joel Embiid', no:11, pos:'C', nat:'US', h:213, w:127, gp:6, mpg:16.0, ppg:8.5, rpg:5.0, apg:1.5, spg:0.4, bpg:0.8, fg:50.0, tp:33.0, ft:85.0 },
+    { n:'Jrue Holiday', no:12, pos:'PG', nat:'US', h:191, w:93, gp:6, mpg:18.0, ppg:7.0, rpg:3.0, apg:3.0, spg:1.2, bpg:0.3, fg:48.0, tp:43.0, ft:80.0 },
+    { n:'Bam Adebayo', no:13, pos:'C', nat:'US', h:206, w:116, gp:6, mpg:17.0, ppg:8.0, rpg:6.0, apg:1.5, spg:0.8, bpg:0.7, fg:55.0, tp:25.0, ft:75.0 },
+    { n:'Anthony Davis', no:14, pos:'C', nat:'US', h:208, w:115, gp:6, mpg:18.0, ppg:9.0, rpg:7.0, apg:1.2, spg:0.8, bpg:1.5, fg:62.0, tp:30.0, ft:78.0 },
+    { n:'Devin Booker', no:15, pos:'SG', nat:'US', h:196, w:93, gp:6, mpg:21.0, ppg:8.0, rpg:2.5, apg:2.8, spg:0.9, bpg:0.2, fg:47.0, tp:39.0, ft:85.0 }
+  ]
+},
+'canada': {
+  city: 'Canada', name: '',
+  players: [
+    { n:'Luguentz Dort', no:0, pos:'SF', nat:'CA', h:194, w:100, gp:5, mpg:24.0, ppg:9.0, rpg:3.5, apg:1.5, spg:1.2, bpg:0.4, fg:44.0, tp:36.0, ft:78.0 },
+    { n:'Nickeil Alexander-Walker', no:1, pos:'SG', nat:'CA', h:196, w:93, gp:5, mpg:18.0, ppg:7.0, rpg:2.5, apg:2.0, spg:1.0, bpg:0.3, fg:45.0, tp:38.0, ft:82.0 },
+    { n:'Shai Gilgeous-Alexander', no:2, pos:'PG', nat:'CA', h:198, w:88, gp:5, mpg:28.0, ppg:18.0, rpg:4.0, apg:5.5, spg:1.5, bpg:0.5, fg:50.0, tp:35.0, ft:88.0 },
+    { n:'Melvin Ejim', no:3, pos:'SF', nat:'CA', h:201, w:100, gp:5, mpg:10.0, ppg:3.0, rpg:2.5, apg:0.8, spg:0.5, bpg:0.2, fg:48.0, tp:33.0, ft:75.0 },
+    { n:'Jamal Murray', no:4, pos:'PG', nat:'CA', h:193, w:97, gp:5, mpg:24.0, ppg:13.0, rpg:3.0, apg:4.0, spg:1.0, bpg:0.2, fg:46.0, tp:38.0, ft:85.0 },
+    { n:'Dwight Powell', no:7, pos:'C', nat:'CA', h:212, w:109, gp:5, mpg:10.0, ppg:3.5, rpg:3.0, apg:0.8, spg:0.3, bpg:0.5, fg:60.0, tp:20.0, ft:70.0 },
+    { n:'Trey Lyles', no:8, pos:'PF', nat:'CA', h:208, w:107, gp:5, mpg:14.0, ppg:5.0, rpg:4.0, apg:1.0, spg:0.5, bpg:0.4, fg:47.0, tp:36.0, ft:78.0 },
+    { n:'RJ Barrett', no:9, pos:'SF', nat:'CA', h:195, w:97, gp:5, mpg:22.0, ppg:11.0, rpg:4.0, apg:2.5, spg:0.8, bpg:0.3, fg:46.0, tp:35.0, ft:75.0 },
+    { n:'Kelly Olynyk', no:13, pos:'C', nat:'CA', h:211, w:109, gp:5, mpg:20.0, ppg:8.0, rpg:5.0, apg:2.5, spg:0.7, bpg:0.5, fg:52.0, tp:40.0, ft:80.0 },
+    { n:'Andrew Nembhard', no:19, pos:'PG', nat:'CA', h:187, w:88, gp:5, mpg:18.0, ppg:6.0, rpg:2.0, apg:3.5, spg:1.0, bpg:0.2, fg:45.0, tp:37.0, ft:80.0 },
+    { n:'Dillon Brooks', no:24, pos:'SF', nat:'CA', h:198, w:100, gp:5, mpg:20.0, ppg:9.0, rpg:3.0, apg:1.5, spg:1.0, bpg:0.3, fg:44.0, tp:36.0, ft:78.0 },
+    { n:'Khem Birch', no:92, pos:'C', nat:'CA', h:206, w:100, gp:5, mpg:8.0, ppg:2.5, rpg:3.0, apg:0.5, spg:0.3, bpg:0.6, fg:55.0, tp:0.0, ft:70.0 }
+  ]
+},
+'australia': {
+  city: 'Australia', name: 'Boomers',
+  players: [
+    { n:'Dyson Daniels', no:1, pos:'PG', nat:'AU', h:201, w:93, gp:4, mpg:20.0, ppg:8.0, rpg:4.0, apg:3.0, spg:1.5, bpg:0.4, fg:46.0, tp:34.0, ft:78.0 },
+    { n:'Josh Giddey', no:3, pos:'SG', nat:'AU', h:203, w:98, gp:4, mpg:24.0, ppg:10.0, rpg:6.0, apg:5.0, spg:1.0, bpg:0.3, fg:45.0, tp:33.0, ft:75.0 },
+    { n:'Patty Mills', no:5, pos:'PG', nat:'AU', h:188, w:82, gp:4, mpg:22.0, ppg:11.0, rpg:2.0, apg:3.0, spg:1.0, bpg:0.1, fg:42.0, tp:38.0, ft:88.0 },
+    { n:'Josh Green', no:6, pos:'SF', nat:'AU', h:196, w:91, gp:4, mpg:18.0, ppg:7.0, rpg:3.0, apg:1.5, spg:1.0, bpg:0.2, fg:46.0, tp:37.0, ft:80.0 },
+    { n:'Joe Ingles', no:7, pos:'SF', nat:'AU', h:203, w:100, gp:4, mpg:18.0, ppg:6.0, rpg:2.5, apg:3.5, spg:0.8, bpg:0.2, fg:45.0, tp:40.0, ft:85.0 },
+    { n:'Matthew Dellavedova', no:8, pos:'PG', nat:'AU', h:193, w:91, gp:4, mpg:10.0, ppg:3.0, rpg:1.5, apg:2.5, spg:0.5, bpg:0.1, fg:40.0, tp:35.0, ft:82.0 },
+    { n:'Dante Exum', no:11, pos:'PG', nat:'AU', h:196, w:96, gp:4, mpg:18.0, ppg:7.0, rpg:2.5, apg:3.0, spg:1.0, bpg:0.2, fg:48.0, tp:38.0, ft:80.0 },
+    { n:'Jock Landale', no:13, pos:'C', nat:'AU', h:211, w:116, gp:4, mpg:18.0, ppg:8.0, rpg:6.0, apg:1.5, spg:0.5, bpg:0.7, fg:55.0, tp:33.0, ft:78.0 },
+    { n:'Nick Kay', no:15, pos:'PF', nat:'AU', h:206, w:104, gp:4, mpg:16.0, ppg:6.0, rpg:5.0, apg:1.5, spg:0.6, bpg:0.4, fg:50.0, tp:36.0, ft:75.0 },
+    { n:'Jack McVeigh', no:17, pos:'SF', nat:'AU', h:203, w:100, gp:4, mpg:12.0, ppg:5.0, rpg:3.0, apg:1.0, spg:0.4, bpg:0.2, fg:45.0, tp:38.0, ft:78.0 },
+    { n:'Will Magnay', no:22, pos:'C', nat:'AU', h:208, w:107, gp:4, mpg:10.0, ppg:3.0, rpg:3.5, apg:0.5, spg:0.3, bpg:0.8, fg:55.0, tp:0.0, ft:65.0 },
+    { n:'Duop Reath', no:26, pos:'C', nat:'AU', h:206, w:111, gp:4, mpg:16.0, ppg:7.0, rpg:4.0, apg:1.0, spg:0.4, bpg:0.6, fg:50.0, tp:35.0, ft:75.0 }
+  ]
+},
+'argentina': {
+  city: 'Argentina', name: '',
+  players: [
+    { n:'Francisco Caffaro', no:1, pos:'C', nat:'AR', h:207, w:111, gp:5, mpg:20.0, ppg:9.0, rpg:7.0, apg:1.0, spg:0.5, bpg:0.8, fg:55.0, tp:20.0, ft:70.0 },
+    { n:'Juani Marcos', no:6, pos:'PG', nat:'AR', h:190, w:84, gp:5, mpg:22.0, ppg:10.0, rpg:2.5, apg:5.0, spg:1.2, bpg:0.1, fg:44.0, tp:36.0, ft:82.0 },
+    { n:'Nicolas Brussino', no:9, pos:'SF', nat:'AR', h:200, w:95, gp:5, mpg:24.0, ppg:11.0, rpg:4.5, apg:2.5, spg:1.0, bpg:0.3, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Gonzalo Corbalan', no:10, pos:'SG', nat:'AR', h:193, w:88, gp:5, mpg:20.0, ppg:9.0, rpg:2.5, apg:2.0, spg:0.8, bpg:0.2, fg:43.0, tp:37.0, ft:80.0 },
+    { n:'Jose Vildoza', no:11, pos:'PG', nat:'AR', h:191, w:86, gp:5, mpg:24.0, ppg:12.0, rpg:3.0, apg:4.5, spg:1.3, bpg:0.1, fg:44.0, tp:36.0, ft:85.0 },
+    { n:'Dylan Bordon', no:16, pos:'PG', nat:'AR', h:190, w:84, gp:5, mpg:14.0, ppg:5.0, rpg:1.5, apg:2.5, spg:0.7, bpg:0.1, fg:42.0, tp:35.0, ft:80.0 },
+    { n:'Gonzalo Bressan', no:18, pos:'C', nat:'AR', h:205, w:104, gp:5, mpg:14.0, ppg:5.0, rpg:4.5, apg:0.8, spg:0.4, bpg:0.5, fg:52.0, tp:25.0, ft:72.0 },
+    { n:'Juan Bocca', no:20, pos:'SF', nat:'AR', h:198, w:93, gp:5, mpg:16.0, ppg:6.0, rpg:3.5, apg:1.5, spg:0.7, bpg:0.2, fg:46.0, tp:37.0, ft:78.0 },
+    { n:'Juan Fernandez', no:21, pos:'PF', nat:'AR', h:205, w:102, gp:5, mpg:16.0, ppg:6.0, rpg:5.0, apg:1.0, spg:0.5, bpg:0.4, fg:50.0, tp:33.0, ft:74.0 },
+    { n:'Juan Pablo Vaulet', no:22, pos:'SF', nat:'AR', h:198, w:96, gp:5, mpg:20.0, ppg:8.0, rpg:4.0, apg:2.0, spg:0.8, bpg:0.3, fg:46.0, tp:36.0, ft:76.0 },
+    { n:'Santiago Trouet', no:23, pos:'PF', nat:'AR', h:205, w:100, gp:5, mpg:14.0, ppg:5.0, rpg:4.0, apg:1.0, spg:0.4, bpg:0.3, fg:48.0, tp:34.0, ft:75.0 },
+    { n:'Alex Negrete', no:44, pos:'SG', nat:'AR', h:192, w:88, gp:5, mpg:16.0, ppg:6.0, rpg:2.0, apg:2.0, spg:0.8, bpg:0.1, fg:43.0, tp:36.0, ft:80.0 }
+  ]
+},
+'germany': {
+  city: 'Germany', name: '',
+  players: [
+    { n:'Dennis Schroder', no:17, pos:'PG', nat:'DE', h:185, w:78, gp:9, mpg:29.0, ppg:17.0, rpg:2.8, apg:6.8, spg:1.4, bpg:0.1, fg:44.0, tp:36.0, ft:86.0 },
+    { n:'Franz Wagner', no:9, pos:'SF', nat:'DE', h:208, w:100, gp:9, mpg:30.0, ppg:18.5, rpg:5.5, apg:3.8, spg:1.2, bpg:0.5, fg:50.0, tp:34.0, ft:82.0 },
+    { n:'Andreas Obst', no:42, pos:'SG', nat:'DE', h:191, w:88, gp:9, mpg:22.0, ppg:9.5, rpg:1.8, apg:2.2, spg:0.7, bpg:0.0, fg:43.0, tp:40.0, ft:88.0 },
+    { n:'Daniel Theis', no:10, pos:'C', nat:'DE', h:203, w:111, gp:9, mpg:20.0, ppg:9.0, rpg:5.2, apg:1.2, spg:0.5, bpg:0.8, fg:58.0, tp:33.0, ft:74.0 },
+    { n:'Isaac Bonga', no:0, pos:'SF', nat:'DE', h:203, w:88, gp:9, mpg:23.0, ppg:7.5, rpg:4.0, apg:1.8, spg:1.5, bpg:0.6, fg:52.0, tp:35.0, ft:70.0 },
+    { n:'Maodo Lo', no:4, pos:'PG', nat:'DE', h:191, w:84, gp:9, mpg:15.0, ppg:6.0, rpg:1.2, apg:2.0, spg:0.6, bpg:0.0, fg:42.0, tp:38.0, ft:85.0 },
+    { n:'Tristan da Silva', no:5, pos:'SF', nat:'DE', h:203, w:99, gp:9, mpg:14.0, ppg:5.5, rpg:2.5, apg:1.0, spg:0.5, bpg:0.2, fg:46.0, tp:36.0, ft:80.0 },
+    { n:'Oscar da Silva', no:1, pos:'PF', nat:'DE', h:206, w:102, gp:9, mpg:16.0, ppg:6.5, rpg:3.5, apg:0.8, spg:0.5, bpg:0.4, fg:54.0, tp:30.0, ft:72.0 },
+    { n:'Johannes Voigtmann', no:7, pos:'C', nat:'DE', h:211, w:109, gp:9, mpg:14.0, ppg:4.0, rpg:3.2, apg:1.5, spg:0.4, bpg:0.5, fg:50.0, tp:34.0, ft:68.0 },
+    { n:'Justus Hollatz', no:21, pos:'PG', nat:'DE', h:191, w:85, gp:9, mpg:10.0, ppg:3.5, rpg:1.0, apg:1.8, spg:0.4, bpg:0.0, fg:43.0, tp:35.0, ft:80.0 },
+    { n:'Johannes Thiemann', no:32, pos:'PF', nat:'DE', h:205, w:104, gp:9, mpg:9.0, ppg:3.0, rpg:2.2, apg:0.5, spg:0.3, bpg:0.3, fg:52.0, tp:25.0, ft:70.0 },
+    { n:'Leon Kratzer', no:34, pos:'C', nat:'DE', h:212, w:113, gp:9, mpg:7.0, ppg:2.5, rpg:2.0, apg:0.3, spg:0.2, bpg:0.4, fg:56.0, tp:0.0, ft:65.0 }
+  ]
+},
+'france': {
+  city: 'France', name: 'Bleus',
+  players: [
+    { n:'Guerschon Yabusele', no:7, pos:'PF', nat:'FR', h:204, w:118, gp:6, mpg:28.0, ppg:16.0, rpg:6.5, apg:2.5, spg:0.8, bpg:0.6, fg:50.0, tp:36.0, ft:78.0 },
+    { n:'Zaccharie Risacher', no:21, pos:'SF', nat:'FR', h:203, w:90, gp:6, mpg:27.0, ppg:14.0, rpg:4.5, apg:1.5, spg:1.0, bpg:0.4, fg:47.0, tp:37.0, ft:80.0 },
+    { n:'Elie Okobo', no:0, pos:'PG', nat:'FR', h:191, w:84, gp:6, mpg:26.0, ppg:13.0, rpg:2.5, apg:5.0, spg:1.3, bpg:0.1, fg:45.0, tp:38.0, ft:84.0 },
+    { n:'Sylvain Francisco', no:1, pos:'PG', nat:'FR', h:186, w:80, gp:6, mpg:22.0, ppg:11.0, rpg:2.0, apg:4.0, spg:1.1, bpg:0.0, fg:44.0, tp:36.0, ft:82.0 },
+    { n:'Bilal Coulibaly', no:99, pos:'SG', nat:'FR', h:200, w:88, gp:6, mpg:24.0, ppg:9.5, rpg:4.0, apg:2.0, spg:1.4, bpg:0.7, fg:48.0, tp:33.0, ft:76.0 },
+    { n:'Isaia Cordinier', no:8, pos:'SG', nat:'FR', h:196, w:86, gp:6, mpg:21.0, ppg:9.0, rpg:3.0, apg:2.2, spg:1.2, bpg:0.2, fg:46.0, tp:35.0, ft:78.0 },
+    { n:'Alex Sarr', no:44, pos:'C', nat:'FR', h:213, w:101, gp:6, mpg:20.0, ppg:8.5, rpg:5.5, apg:1.0, spg:0.5, bpg:1.5, fg:52.0, tp:30.0, ft:70.0 },
+    { n:'Theo Maledon', no:11, pos:'PG', nat:'FR', h:193, w:84, gp:6, mpg:18.0, ppg:7.0, rpg:2.0, apg:3.5, spg:0.8, bpg:0.1, fg:43.0, tp:36.0, ft:85.0 },
+    { n:'Timothe Luwawu-Cabarrot', no:3, pos:'SF', nat:'FR', h:201, w:95, gp:6, mpg:16.0, ppg:6.5, rpg:2.5, apg:1.2, spg:0.7, bpg:0.2, fg:44.0, tp:37.0, ft:80.0 },
+    { n:'Mam Jaiteh', no:14, pos:'C', nat:'FR', h:211, w:113, gp:6, mpg:15.0, ppg:6.0, rpg:5.0, apg:0.8, spg:0.4, bpg:0.7, fg:58.0, tp:0.0, ft:68.0 },
+    { n:'Jaylen Hoard', no:34, pos:'PF', nat:'FR', h:203, w:100, gp:6, mpg:14.0, ppg:5.5, rpg:4.5, apg:1.0, spg:0.6, bpg:0.5, fg:54.0, tp:28.0, ft:72.0 },
+    { n:'Nadir Hifi', no:2, pos:'SG', nat:'FR', h:185, w:78, gp:6, mpg:12.0, ppg:7.0, rpg:1.2, apg:1.5, spg:0.6, bpg:0.0, fg:42.0, tp:36.0, ft:86.0 }
+  ]
+},
+'spain': {
+  city: 'Spain', name: '',
+  players: [
+    { n:'Santi Aldama', no:7, pos:'PF', nat:'ES', h:213, w:101, gp:3, mpg:30.0, ppg:17.0, rpg:7.5, apg:3.0, spg:1.0, bpg:1.0, fg:48.0, tp:35.0, ft:80.0 },
+    { n:'Willy Hernangomez', no:14, pos:'C', nat:'ES', h:213, w:114, gp:3, mpg:24.0, ppg:14.0, rpg:8.0, apg:1.5, spg:0.7, bpg:0.7, fg:56.0, tp:25.0, ft:74.0 },
+    { n:'Dario Brizuela', no:8, pos:'SG', nat:'ES', h:188, w:82, gp:3, mpg:26.0, ppg:13.0, rpg:2.5, apg:2.5, spg:1.2, bpg:0.0, fg:44.0, tp:37.0, ft:85.0 },
+    { n:'Juancho Hernangomez', no:41, pos:'PF', nat:'ES', h:206, w:100, gp:3, mpg:24.0, ppg:11.0, rpg:5.0, apg:1.5, spg:0.8, bpg:0.3, fg:47.0, tp:36.0, ft:78.0 },
+    { n:'Xabier Lopez-Arostegui', no:6, pos:'SF', nat:'ES', h:200, w:95, gp:3, mpg:25.0, ppg:10.0, rpg:4.0, apg:2.0, spg:1.0, bpg:0.3, fg:46.0, tp:35.0, ft:80.0 },
+    { n:'Mario Saint-Supery', no:5, pos:'PG', nat:'ES', h:191, w:84, gp:3, mpg:22.0, ppg:9.0, rpg:2.5, apg:4.5, spg:1.3, bpg:0.1, fg:43.0, tp:34.0, ft:82.0 },
+    { n:'Sergio de Larrea', no:3, pos:'PG', nat:'ES', h:198, w:85, gp:3, mpg:20.0, ppg:8.0, rpg:2.0, apg:4.0, spg:0.9, bpg:0.1, fg:44.0, tp:36.0, ft:80.0 },
+    { n:'Jaime Pradilla', no:4, pos:'PF', nat:'ES', h:205, w:100, gp:3, mpg:18.0, ppg:7.0, rpg:4.5, apg:1.2, spg:0.5, bpg:0.4, fg:50.0, tp:33.0, ft:75.0 },
+    { n:'Josep Puerto', no:2, pos:'SG', nat:'ES', h:200, w:90, gp:3, mpg:16.0, ppg:6.0, rpg:2.0, apg:1.0, spg:0.6, bpg:0.1, fg:43.0, tp:38.0, ft:80.0 },
+    { n:'Santiago Yusta', no:22, pos:'SF', nat:'ES', h:201, w:95, gp:3, mpg:15.0, ppg:5.5, rpg:2.5, apg:1.0, spg:0.5, bpg:0.2, fg:45.0, tp:35.0, ft:78.0 },
+    { n:'Joel Parra', no:44, pos:'SF', nat:'ES', h:203, w:96, gp:3, mpg:14.0, ppg:5.0, rpg:3.0, apg:1.0, spg:0.5, bpg:0.3, fg:46.0, tp:34.0, ft:76.0 },
+    { n:'Yankuba Sima', no:77, pos:'C', nat:'ES', h:211, w:107, gp:3, mpg:12.0, ppg:4.0, rpg:3.5, apg:0.5, spg:0.4, bpg:0.8, fg:54.0, tp:0.0, ft:65.0 }
+  ]
+},
+'serbia': {
+  city: 'Serbia', name: '',
+  players: [
+    { n:'Nikola Jokic', no:15, pos:'C', nat:'RS', h:211, w:129, gp:5, mpg:29.0, ppg:23.0, rpg:10.0, apg:7.0, spg:1.5, bpg:0.8, fg:60.0, tp:38.0, ft:80.0 },
+    { n:'Bogdan Bogdanovic', no:7, pos:'SG', nat:'RS', h:196, w:95, gp:5, mpg:28.0, ppg:16.0, rpg:3.5, apg:4.0, spg:1.3, bpg:0.2, fg:45.0, tp:38.0, ft:86.0 },
+    { n:'Vasilije Micic', no:22, pos:'PG', nat:'RS', h:196, w:90, gp:5, mpg:25.0, ppg:12.0, rpg:2.5, apg:5.5, spg:1.0, bpg:0.1, fg:44.0, tp:36.0, ft:84.0 },
+    { n:'Nikola Jovic', no:5, pos:'SF', nat:'RS', h:208, w:93, gp:5, mpg:24.0, ppg:11.0, rpg:5.0, apg:2.5, spg:0.8, bpg:0.4, fg:47.0, tp:36.0, ft:78.0 },
+    { n:'Aleksa Avramovic', no:30, pos:'PG', nat:'RS', h:192, w:88, gp:5, mpg:22.0, ppg:10.0, rpg:2.5, apg:3.0, spg:1.4, bpg:0.1, fg:45.0, tp:37.0, ft:82.0 },
+    { n:'Marko Guduric', no:23, pos:'SG', nat:'RS', h:198, w:90, gp:5, mpg:21.0, ppg:9.0, rpg:2.5, apg:3.0, spg:0.9, bpg:0.1, fg:44.0, tp:36.0, ft:84.0 },
+    { n:'Nikola Milutinov', no:33, pos:'C', nat:'RS', h:213, w:111, gp:5, mpg:20.0, ppg:8.0, rpg:7.0, apg:1.0, spg:0.5, bpg:0.6, fg:58.0, tp:0.0, ft:68.0 },
+    { n:'Filip Petrusev', no:3, pos:'C', nat:'RS', h:211, w:106, gp:5, mpg:16.0, ppg:8.5, rpg:4.5, apg:0.8, spg:0.4, bpg:0.4, fg:52.0, tp:34.0, ft:78.0 },
+    { n:'Vanja Marinkovic', no:9, pos:'SG', nat:'RS', h:199, w:90, gp:5, mpg:15.0, ppg:6.0, rpg:2.0, apg:1.2, spg:0.6, bpg:0.1, fg:43.0, tp:37.0, ft:80.0 },
+    { n:'Ognjen Dobric', no:13, pos:'SF', nat:'RS', h:201, w:95, gp:5, mpg:14.0, ppg:5.0, rpg:2.5, apg:1.0, spg:0.7, bpg:0.2, fg:46.0, tp:35.0, ft:76.0 },
+    { n:'Tristan Vukcevic', no:11, pos:'PF', nat:'RS', h:213, w:102, gp:5, mpg:12.0, ppg:5.5, rpg:3.0, apg:0.8, spg:0.4, bpg:0.4, fg:50.0, tp:34.0, ft:74.0 },
+    { n:'Stefan Jovic', no:24, pos:'PG', nat:'RS', h:198, w:92, gp:5, mpg:13.0, ppg:4.0, rpg:1.5, apg:3.5, spg:0.7, bpg:0.0, fg:42.0, tp:33.0, ft:80.0 }
+  ]
+},
+'greece': {
+  city: 'Greece', name: '',
+  players: [
+    { n:'Tyler Dorsey', no:2, pos:'SG', nat:'GR', h:193, w:88, gp:6, mpg:27.0, ppg:13.5, rpg:3.0, apg:2.5, spg:1.0, bpg:0.1, fg:46.0, tp:38.0, ft:85.0 },
+    { n:'Giannoulis Larentzakis', no:5, pos:'SG', nat:'GR', h:196, w:90, gp:6, mpg:18.0, ppg:5.0, rpg:2.0, apg:1.5, spg:1.0, bpg:0.1, fg:42.0, tp:34.0, ft:78.0 },
+    { n:'Vassilis Toliopoulos', no:7, pos:'PG', nat:'GR', h:188, w:84, gp:6, mpg:14.0, ppg:5.5, rpg:1.5, apg:1.5, spg:0.6, bpg:0.0, fg:44.0, tp:37.0, ft:82.0 },
+    { n:'Kostas Sloukas', no:10, pos:'PG', nat:'GR', h:190, w:86, gp:6, mpg:24.0, ppg:9.0, rpg:2.0, apg:5.0, spg:0.8, bpg:0.0, fg:45.0, tp:36.0, ft:88.0 },
+    { n:'Panagiotis Kalaitzakis', no:11, pos:'SF', nat:'GR', h:200, w:95, gp:6, mpg:12.0, ppg:3.5, rpg:2.0, apg:1.0, spg:0.5, bpg:0.2, fg:43.0, tp:32.0, ft:72.0 },
+    { n:'Kostas Papanikolaou', no:16, pos:'SF', nat:'GR', h:203, w:98, gp:6, mpg:20.0, ppg:6.0, rpg:3.5, apg:2.0, spg:1.0, bpg:0.2, fg:44.0, tp:35.0, ft:75.0 },
+    { n:'Dimitrios Katsivelis', no:19, pos:'PG', nat:'GR', h:198, w:92, gp:6, mpg:10.0, ppg:3.0, rpg:1.5, apg:1.5, spg:0.5, bpg:0.0, fg:42.0, tp:33.0, ft:80.0 },
+    { n:'Alexandros Samodurov', no:20, pos:'PF', nat:'GR', h:210, w:100, gp:6, mpg:8.0, ppg:2.5, rpg:2.5, apg:0.5, spg:0.3, bpg:0.5, fg:48.0, tp:25.0, ft:65.0 },
+    { n:'Giannis Antetokounmpo', no:34, pos:'PF', nat:'GR', h:211, w:110, gp:6, mpg:30.0, ppg:27.0, rpg:10.0, apg:4.0, spg:1.0, bpg:1.0, fg:60.0, tp:30.0, ft:70.0 },
+    { n:'Kostas Antetokounmpo', no:37, pos:'C', nat:'GR', h:209, w:104, gp:6, mpg:10.0, ppg:3.5, rpg:3.0, apg:0.5, spg:0.4, bpg:0.7, fg:55.0, tp:20.0, ft:60.0 },
+    { n:'Thanasis Antetokounmpo', no:43, pos:'SF', nat:'GR', h:201, w:98, gp:6, mpg:12.0, ppg:4.0, rpg:3.0, apg:1.0, spg:0.8, bpg:0.4, fg:50.0, tp:28.0, ft:64.0 },
+    { n:'Dinos Mitoglou', no:44, pos:'C', nat:'GR', h:210, w:108, gp:6, mpg:22.0, ppg:9.5, rpg:5.5, apg:1.5, spg:0.5, bpg:0.6, fg:50.0, tp:40.0, ft:80.0 }
+  ]
+},
+'slovenia': {
+  city: 'Slovenia', name: '',
+  players: [
+    { n:'Martin Krampelj', no:2, pos:'PF', nat:'SI', h:206, w:102, gp:6, mpg:18.0, ppg:7.0, rpg:5.0, apg:1.5, spg:0.7, bpg:0.4, fg:52.0, tp:33.0, ft:72.0 },
+    { n:'Mark Padjen', no:4, pos:'PG', nat:'SI', h:194, w:88, gp:6, mpg:8.0, ppg:2.0, rpg:1.5, apg:1.0, spg:0.4, bpg:0.1, fg:42.0, tp:31.0, ft:75.0 },
+    { n:'Aleksej Nikolic', no:6, pos:'PG', nat:'SI', h:191, w:88, gp:6, mpg:16.0, ppg:4.5, rpg:1.5, apg:3.0, spg:0.9, bpg:0.0, fg:43.0, tp:35.0, ft:80.0 },
+    { n:'Klemen Prepelic', no:7, pos:'SG', nat:'SI', h:191, w:86, gp:6, mpg:24.0, ppg:13.0, rpg:2.0, apg:2.0, spg:0.7, bpg:0.1, fg:44.0, tp:37.0, ft:88.0 },
+    { n:'Edo Muric', no:8, pos:'PF', nat:'SI', h:203, w:100, gp:6, mpg:22.0, ppg:7.5, rpg:4.5, apg:2.0, spg:1.0, bpg:0.3, fg:46.0, tp:36.0, ft:74.0 },
+    { n:'Rok Radovic', no:12, pos:'SF', nat:'SI', h:201, w:96, gp:6, mpg:12.0, ppg:4.0, rpg:2.0, apg:1.0, spg:0.5, bpg:0.2, fg:45.0, tp:34.0, ft:76.0 },
+    { n:'Robert Jurkovic', no:13, pos:'C', nat:'SI', h:207, w:108, gp:6, mpg:10.0, ppg:3.0, rpg:3.0, apg:0.5, spg:0.3, bpg:0.5, fg:54.0, tp:0.0, ft:62.0 },
+    { n:'Gregor Hrovat', no:15, pos:'SF', nat:'SI', h:196, w:92, gp:6, mpg:20.0, ppg:8.0, rpg:3.0, apg:2.0, spg:0.8, bpg:0.1, fg:45.0, tp:38.0, ft:82.0 },
+    { n:'Luka Scuka', no:23, pos:'PF', nat:'SI', h:209, w:104, gp:6, mpg:14.0, ppg:5.0, rpg:4.0, apg:0.5, spg:0.4, bpg:0.4, fg:52.0, tp:30.0, ft:68.0 },
+    { n:'Alen Omic', no:24, pos:'C', nat:'SI', h:216, w:120, gp:6, mpg:16.0, ppg:8.0, rpg:6.0, apg:0.5, spg:0.3, bpg:0.8, fg:58.0, tp:0.0, ft:66.0 },
+    { n:'Leon Stergar', no:37, pos:'SG', nat:'SI', h:193, w:88, gp:6, mpg:9.0, ppg:2.5, rpg:1.5, apg:1.0, spg:0.4, bpg:0.1, fg:42.0, tp:32.0, ft:78.0 },
+    { n:'Luka Doncic', no:77, pos:'PG', nat:'SI', h:201, w:104, gp:6, mpg:33.0, ppg:34.0, rpg:9.0, apg:7.0, spg:1.8, bpg:0.3, fg:50.0, tp:36.0, ft:84.0 }
+  ]
+},
+'lithuania': {
+  city: 'Lithuania', name: '',
+  players: [
+    { n:'Marek Blazevic', no:1, pos:'C', nat:'LT', h:211, w:110, gp:6, mpg:12.0, ppg:4.5, rpg:3.5, apg:0.5, spg:0.3, bpg:0.6, fg:55.0, tp:25.0, ft:68.0 },
+    { n:'Margiris Normantas', no:2, pos:'SG', nat:'LT', h:194, w:90, gp:6, mpg:14.0, ppg:5.0, rpg:2.0, apg:1.5, spg:0.7, bpg:0.1, fg:44.0, tp:35.0, ft:78.0 },
+    { n:'Arnas Velicka', no:3, pos:'PG', nat:'LT', h:195, w:90, gp:6, mpg:20.0, ppg:6.5, rpg:2.0, apg:4.0, spg:0.8, bpg:0.0, fg:44.0, tp:36.0, ft:82.0 },
+    { n:'Gytis Radzevicius', no:7, pos:'SF', nat:'LT', h:197, w:94, gp:6, mpg:16.0, ppg:6.0, rpg:3.0, apg:1.5, spg:0.7, bpg:0.2, fg:45.0, tp:36.0, ft:76.0 },
+    { n:'Tadas Sedekerskis', no:8, pos:'PF', nat:'LT', h:206, w:100, gp:6, mpg:22.0, ppg:8.0, rpg:5.0, apg:2.0, spg:1.0, bpg:0.4, fg:48.0, tp:34.0, ft:74.0 },
+    { n:'Azuolas Tubelis', no:10, pos:'PF', nat:'LT', h:208, w:102, gp:6, mpg:20.0, ppg:10.0, rpg:6.0, apg:1.0, spg:0.7, bpg:0.5, fg:54.0, tp:30.0, ft:72.0 },
+    { n:'Rokas Jokubaitis', no:13, pos:'PG', nat:'LT', h:193, w:90, gp:6, mpg:26.0, ppg:14.0, rpg:3.0, apg:5.5, spg:1.0, bpg:0.1, fg:47.0, tp:38.0, ft:85.0 },
+    { n:'Laurynas Birutis', no:15, pos:'C', nat:'LT', h:213, w:115, gp:6, mpg:14.0, ppg:6.5, rpg:4.5, apg:0.5, spg:0.3, bpg:0.7, fg:60.0, tp:0.0, ft:70.0 },
+    { n:'Jonas Valanciunas', no:17, pos:'C', nat:'LT', h:211, w:120, gp:6, mpg:28.0, ppg:16.0, rpg:9.0, apg:1.5, spg:0.5, bpg:1.0, fg:58.0, tp:25.0, ft:78.0 },
+    { n:'Rokas Giedraitis', no:31, pos:'SF', nat:'LT', h:201, w:98, gp:6, mpg:18.0, ppg:8.0, rpg:2.5, apg:1.0, spg:0.6, bpg:0.1, fg:45.0, tp:38.0, ft:84.0 },
+    { n:'Ignas Sargiunas', no:43, pos:'SG', nat:'LT', h:196, w:92, gp:6, mpg:10.0, ppg:3.0, rpg:1.5, apg:1.5, spg:0.5, bpg:0.0, fg:42.0, tp:33.0, ft:80.0 },
+    { n:'Deividas Sirvydis', no:91, pos:'SG', nat:'LT', h:204, w:94, gp:6, mpg:12.0, ppg:5.0, rpg:2.0, apg:1.0, spg:0.5, bpg:0.1, fg:43.0, tp:36.0, ft:82.0 }
+  ]
+},
+'italy': {
+  city: 'Italy', name: 'Azzurri',
+  players: [
+    { n:'Danilo Gallinari', no:8, pos:'PF', nat:'IT', h:208, w:103, gp:6, mpg:20.0, ppg:10.0, rpg:3.5, apg:1.5, spg:0.6, bpg:0.2, fg:45.0, tp:38.0, ft:88.0 },
+    { n:'Nicolo Melli', no:9, pos:'PF', nat:'IT', h:205, w:104, gp:6, mpg:24.0, ppg:8.0, rpg:5.5, apg:2.5, spg:0.8, bpg:0.6, fg:46.0, tp:35.0, ft:80.0 },
+    { n:'Simone Fontecchio', no:13, pos:'SF', nat:'IT', h:201, w:96, gp:6, mpg:30.0, ppg:18.0, rpg:4.0, apg:2.0, spg:1.0, bpg:0.3, fg:46.0, tp:39.0, ft:86.0 },
+    { n:'Darius Thompson', no:15, pos:'PG', nat:'IT', h:193, w:88, gp:6, mpg:26.0, ppg:9.0, rpg:3.0, apg:5.0, spg:1.2, bpg:0.2, fg:45.0, tp:35.0, ft:80.0 },
+    { n:'Giampaolo Ricci', no:17, pos:'PF', nat:'IT', h:200, w:98, gp:6, mpg:16.0, ppg:5.0, rpg:3.0, apg:1.0, spg:0.6, bpg:0.2, fg:48.0, tp:36.0, ft:78.0 },
+    { n:'Matteo Spagnolo', no:18, pos:'PG', nat:'IT', h:193, w:88, gp:6, mpg:18.0, ppg:7.0, rpg:2.0, apg:3.0, spg:0.7, bpg:0.1, fg:44.0, tp:35.0, ft:82.0 },
+    { n:'Gabriele Procida', no:19, pos:'SG', nat:'IT', h:193, w:88, gp:6, mpg:20.0, ppg:8.0, rpg:2.5, apg:1.5, spg:0.7, bpg:0.1, fg:45.0, tp:38.0, ft:80.0 },
+    { n:'Saliou Niang', no:20, pos:'SF', nat:'IT', h:199, w:92, gp:6, mpg:16.0, ppg:6.0, rpg:3.0, apg:1.5, spg:0.9, bpg:0.3, fg:48.0, tp:32.0, ft:72.0 },
+    { n:'Marco Spissu', no:33, pos:'PG', nat:'IT', h:184, w:80, gp:6, mpg:18.0, ppg:6.5, rpg:1.5, apg:3.5, spg:0.7, bpg:0.0, fg:43.0, tp:36.0, ft:85.0 },
+    { n:'Mouhamet Diouf', no:35, pos:'C', nat:'IT', h:208, w:104, gp:6, mpg:14.0, ppg:5.0, rpg:4.0, apg:0.5, spg:0.4, bpg:0.6, fg:56.0, tp:20.0, ft:66.0 },
+    { n:'Nicola Akele', no:45, pos:'PF', nat:'IT', h:203, w:98, gp:6, mpg:12.0, ppg:4.0, rpg:3.0, apg:1.0, spg:0.5, bpg:0.3, fg:48.0, tp:34.0, ft:74.0 },
+    { n:'Alessandro Pajola', no:54, pos:'PG', nat:'IT', h:194, w:88, gp:6, mpg:22.0, ppg:5.0, rpg:2.5, apg:4.5, spg:1.4, bpg:0.1, fg:44.0, tp:34.0, ft:78.0 }
+  ]
 }
 
   };
@@ -1065,6 +1281,17 @@
     'tor': {"Scottie Barnes":4433134, "RJ Barrett":4395625, "Immanuel Quickley":4395724, "Brandon Ingram":3913176, "Jakob Poeltl":3134908, "Gradey Dick":5106258, "Ja'Kobe Walter":4684272, "Jamal Shead":4432241, "Jonathan Mogbo":5107897, "Collin Murray-Boyles":5093267, "Jamison Battle":4431893, "Ochai Agbaji":4397018, "Chris Boucher":3948153, "Kelly Olynyk":2489663},
     'utah': {"Lauri Markkanen":4066336, "Keyonte George":4433627, "Walker Kessler":4433136, "Isaiah Collier":4683766, "Brice Sensabaugh":5105839, "Ace Bailey":4873138, "Cody Williams":4895758, "Svi Mykhailiuk":3133602, "Kyle Filipowski":4684793, "Jusuf Nurkic":3102530, "Elijah Harkless":4397449, "Collin Sexton":4277811, "John Collins":3908845, "Taylor Hendricks":4684806},
     'wsh': {"Alex Sarr":5160992, "Bilal Coulibaly":5104155, "Bub Carrington":4845374, "Tristan Vukcevic":4997537, "Cam Whitmore":5105592, "Tre Johnson":5238230, "AJ Johnson":5170947, "Justin Champagnie":4432907, "Kyshawn George":5174563, "Jordan Poole":4277956, "Kyle Kuzma":3134907, "CJ McCollum":2490149, "Khris Middleton":6609, "Corey Kispert":4280151, "Marcus Smart":2990992},
+    // National teams — reuse verified ESPN ids for the players' NBA careers.
+    'usa': {"Stephen Curry":3975, "Anthony Edwards":4594268, "LeBron James":1966, "Kevin Durant":3202, "Derrick White":3078576, "Tyrese Haliburton":4396993, "Jayson Tatum":4065648, "Joel Embiid":3059318, "Jrue Holiday":3995, "Bam Adebayo":4066261, "Anthony Davis":6583, "Devin Booker":3136193},
+    'canada': {"Luguentz Dort":4397020, "Nickeil Alexander-Walker":4278039, "Shai Gilgeous-Alexander":4278073, "Jamal Murray":3936299, "Dwight Powell":2531367, "RJ Barrett":4395625, "Kelly Olynyk":2489663, "Andrew Nembhard":4395712, "Dillon Brooks":3155526},
+    'australia': {"Dyson Daniels":4869342, "Josh Giddey":4871145, "Josh Green":4432811},
+    'germany': {"Franz Wagner":4566434, "Tristan da Silva":4702382},
+    'france': {"Zaccharie Risacher":5211175, "Bilal Coulibaly":5104155, "Alex Sarr":5160992, "Guerschon Yabusele":4017844},
+    'spain': {"Santi Aldama":4593125},
+    'serbia': {"Nikola Jokic":3112335, "Bogdan Bogdanovic":3037789, "Nikola Jovic":4997528, "Tristan Vukcevic":4997537},
+    'greece': {"Giannis Antetokounmpo":3032977},
+    'slovenia': {"Luka Doncic":3945274},
+    'lithuania': {"Jonas Valanciunas":6477},
   };
 
   function normalizeName(s) {
