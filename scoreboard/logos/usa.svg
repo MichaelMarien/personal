@@ -4,11 +4,19 @@
   </defs>
   <circle cx="100" cy="100" r="96" fill="#111"/>
   <g clip-path="url(#c)">
-    <rect x="8.0" y="8" width="61.8" height="184" fill="#3c3b6e"/>
-    <rect x="69.3" y="8" width="61.8" height="184" fill="#ffffff"/>
-    <rect x="130.7" y="8" width="61.8" height="184" fill="#b22234"/>
+    <rect x="8" y="8" width="184" height="184" fill="#ffffff"/>
+    <rect x="8" y="8" width="184" height="26.3" fill="#b22234"/>
+    <rect x="8" y="60.6" width="184" height="26.3" fill="#b22234"/>
+    <rect x="8" y="113.1" width="184" height="26.3" fill="#b22234"/>
+    <rect x="8" y="165.7" width="184" height="26.3" fill="#b22234"/>
+    <rect x="8" y="8" width="92" height="79" fill="#3c3b6e"/>
+    <g fill="#ffffff">
+      <circle cx="30" cy="26" r="3.2"/><circle cx="52" cy="26" r="3.2"/><circle cx="74" cy="26" r="3.2"/>
+      <circle cx="41" cy="40" r="3.2"/><circle cx="63" cy="40" r="3.2"/>
+      <circle cx="30" cy="54" r="3.2"/><circle cx="52" cy="54" r="3.2"/><circle cx="74" cy="54" r="3.2"/>
+      <circle cx="41" cy="68" r="3.2"/><circle cx="63" cy="68" r="3.2"/>
+    </g>
   </g>
   <circle cx="100" cy="100" r="92" fill="none" stroke="#fff" stroke-width="4"/>
-  <text x="100" y="116" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="46" fill="#fff" stroke="#111" stroke-width="3.5" paint-order="stroke">USA</text>
-  <text x="100" y="148" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="16" fill="#fff" stroke="#111" stroke-width="2" paint-order="stroke">USA</text>
+  <text x="100" y="124" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="48" fill="#fff" stroke="#111" stroke-width="4.5" paint-order="stroke">USA</text>
 </svg>
