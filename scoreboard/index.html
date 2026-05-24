@@ -75,7 +75,7 @@
     filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
   }
   .logo.visible { opacity: 0.5; }
-  .name-row, .score, .buttons { position: relative; z-index: 1; }
+  .name-row, .score, .buttons, .foul-btn { position: relative; z-index: 1; }
   .name-row { display: flex; align-items: stretch; gap: 6px; width: 100%; }
   .name {
     background: rgba(255,255,255,0.1); border: none; color: white;
@@ -119,6 +119,14 @@
   .buttons {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%;
   }
+  .foul-btn {
+    align-self: center; margin-bottom: 6px;
+    background: rgba(255,255,255,0.12); color: white;
+    border: 1px solid rgba(255,255,255,0.4); border-radius: 8px;
+    padding: 5px 14px; font-size: clamp(12px, 1.8vh, 15px); font-weight: 700;
+    cursor: pointer; font-variant-numeric: tabular-nums;
+  }
+  .foul-btn:active { transform: scale(0.95); }
   .sbtn {
     background: white; border: none; border-radius: 12px;
     padding: 14px 0; font-size: clamp(16px, 2.5vh, 22px); font-weight: 800;
@@ -236,7 +244,7 @@
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
-    <div class="version" aria-hidden="true">v5 · 2026-05-24</div>
+    <div class="version" aria-hidden="true">v6 · 2026-05-24</div>
   </div>
 
   <div class="teams">
@@ -249,6 +257,7 @@
         <button class="clear" data-clear="A" aria-label="Clear home name">×</button>
       </div>
       <div class="score" id="scoreA">0</div>
+      <button class="foul-btn" data-foul="A" aria-label="Add foul home">Fouten: <span id="foulA">0</span></button>
       <div class="buttons">
         <button class="sbtn" data-team="A" data-amt="1">+1</button>
         <button class="sbtn" data-team="A" data-amt="2">+2</button>
@@ -265,6 +274,7 @@
         <button class="clear" data-clear="B" aria-label="Clear away name">×</button>
       </div>
       <div class="score" id="scoreB">0</div>
+      <button class="foul-btn" data-foul="B" aria-label="Add foul away">Fouten: <span id="foulB">0</span></button>
       <div class="buttons">
         <button class="sbtn" data-team="B" data-amt="1">+1</button>
         <button class="sbtn" data-team="B" data-amt="2">+2</button>
@@ -295,9 +305,11 @@
   </div>
 
 <script>
-  let scoreA = 0, scoreB = 0, quarter = 1;
+  let scoreA = 0, scoreB = 0, quarter = 1, foulsA = 0, foulsB = 0;
   const sa = document.getElementById('scoreA');
   const sb = document.getElementById('scoreB');
+  const fa = document.getElementById('foulA');
+  const fb = document.getElementById('foulB');
   const ql = document.getElementById('qLabel');
   const nameA = document.getElementById('nameA');
   const nameB = document.getElementById('nameB');
@@ -1211,7 +1223,7 @@
   }
 
   function save() {
-    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()) };
+    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()), fa: foulsA, fb: foulsB };
     if (useLocalStorage) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     } else {
@@ -1233,6 +1245,8 @@
       scoreA = s.a || 0;
       scoreB = s.b || 0;
       quarter = s.q || 1;
+      foulsA = s.fa || 0;
+      foulsB = s.fb || 0;
       if (s.na) nameA.value = s.na;
       if (s.nb) nameB.value = s.nb;
       if (typeof s.c === 'number' && s.c >= 0) clockMs = s.c;
@@ -1242,6 +1256,8 @@
   function render() {
     sa.textContent = scoreA;
     sb.textContent = scoreB;
+    fa.textContent = foulsA;
+    fb.textContent = foulsB;
     ql.textContent = 'QUARTER ' + quarter;
     save();
   }
@@ -1251,6 +1267,14 @@
       const amt = parseInt(btn.dataset.amt, 10);
       if (btn.dataset.team === 'A') scoreA = Math.max(0, scoreA + amt);
       else scoreB = Math.max(0, scoreB + amt);
+      render();
+    });
+  });
+
+  document.querySelectorAll('button[data-foul]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.foul === 'A') foulsA++;
+      else foulsB++;
       render();
     });
   });
@@ -1283,7 +1307,7 @@
 
   document.getElementById('reset').addEventListener('click', () => {
     if (confirm('Beide scores en kwart herbeginnen?')) {
-      scoreA = 0; scoreB = 0; quarter = 1;
+      scoreA = 0; scoreB = 0; quarter = 1; foulsA = 0; foulsB = 0;
       resetClock();
       render();
     }
