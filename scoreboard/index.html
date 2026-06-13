@@ -1837,6 +1837,13 @@
     save();
   }
 
+  // A made basket changes possession: reset to 24 and immediately run.
+  function restartShot() {
+    cancelAnimationFrame(shotRaf);
+    shotMs = SHOT_DEFAULT_MS;
+    startShot();
+  }
+
   // Shorter, higher-pitched horn than the end-of-period buzzer.
   function shotBuzzer() {
     save();
@@ -1943,6 +1950,7 @@
       const amt = parseInt(btn.dataset.amt, 10);
       if (btn.dataset.team === 'A') scoreA = Math.max(0, scoreA + amt);
       else scoreB = Math.max(0, scoreB + amt);
+      if (amt > 0) restartShot();
       render();
     });
   });
@@ -2053,6 +2061,7 @@
     if (!which) return false;
     if (which === 'A') scoreA = Math.max(0, scoreA + parsed.amount);
     else scoreB = Math.max(0, scoreB + parsed.amount);
+    if (parsed.amount > 0) restartShot();
     render();
     const teamLabel = (which === 'A' ? nameA.value : nameB.value) || which;
     const sign = parsed.amount >= 0 ? '+' : '';
