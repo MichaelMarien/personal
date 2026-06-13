@@ -50,6 +50,11 @@
   }
   .clock.running { background: #166534; }
   .clock.expired { background: #7f1d1d; animation: clockPulse 0.9s infinite; }
+  /* Shot clock: amber accent, narrower than the game clock. The .shot rules use
+     two classes so .running/.expired states need three-class rules to override. */
+  .clock.shot { background: #78350f; color: #fde68a; min-width: 64px; }
+  .clock.shot.running { background: #b45309; color: #fff; }
+  .clock.shot.expired { background: #7f1d1d; color: #fff; }
   @keyframes clockPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.6); }
     50% { box-shadow: 0 0 0 10px rgba(220,38,38,0); }
@@ -258,7 +263,8 @@
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
-    <div class="version" aria-hidden="true">v6 · 2026-05-24</div>
+    <div class="clock shot" id="shotclock" role="timer" aria-label="Shot clock — tap to start/pause, hold to reset to 24">24</div>
+    <div class="version" aria-hidden="true">v7 · 2026-06-13</div>
   </div>
 
   <div class="teams">
@@ -1766,6 +1772,121 @@
     else startClock();
   });
 
+  // --- Shot clock (24s) ---
+  const SHOT_DEFAULT_MS = 24 * 1000;
+  let shotMs = SHOT_DEFAULT_MS;
+  let shotRunning = false;
+  let shotEnd = 0;
+  let shotRaf = null;
+  const shotEl = document.getElementById('shotclock');
+
+  function getShotMs() {
+    return shotRunning ? Math.max(0, shotEnd - performance.now()) : shotMs;
+  }
+
+  // Whole seconds above 5s (rounding up, like real shot clocks), tenths below.
+  function formatShot(ms) {
+    if (ms <= 0) return '0.0';
+    const sec = ms / 1000;
+    return sec > 5 ? String(Math.ceil(sec)) : sec.toFixed(1);
+  }
+
+  function renderShot() {
+    let ms;
+    if (shotRunning) {
+      ms = Math.max(0, shotEnd - performance.now());
+      if (ms === 0) {
+        shotMs = 0;
+        shotRunning = false;
+        cancelAnimationFrame(shotRaf);
+        shotBuzzer();
+      } else {
+        shotMs = ms;
+      }
+    } else {
+      ms = shotMs;
+    }
+    shotEl.textContent = formatShot(ms);
+    shotEl.classList.toggle('running', shotRunning);
+    shotEl.classList.toggle('expired', ms <= 0);
+    if (shotRunning) shotRaf = requestAnimationFrame(renderShot);
+  }
+
+  function startShot() {
+    if (shotMs <= 0) return;
+    unlockAudio();
+    shotRunning = true;
+    shotEnd = performance.now() + shotMs;
+    renderShot();
+  }
+
+  function pauseShot() {
+    if (!shotRunning) return;
+    shotMs = Math.max(0, shotEnd - performance.now());
+    shotRunning = false;
+    cancelAnimationFrame(shotRaf);
+    renderShot();
+    save();
+  }
+
+  function resetShot() {
+    shotRunning = false;
+    cancelAnimationFrame(shotRaf);
+    shotMs = SHOT_DEFAULT_MS;
+    renderShot();
+    save();
+  }
+
+  // Shorter, higher-pitched horn than the end-of-period buzzer.
+  function shotBuzzer() {
+    save();
+    if (navigator.vibrate) { try { navigator.vibrate([200, 60, 200]); } catch (e) {} }
+    if (!clockAudio) {
+      try { clockAudio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    if (!clockAudio) return;
+    try {
+      if (clockAudio.state === 'suspended') clockAudio.resume();
+      const ctx = clockAudio;
+      const t0 = ctx.currentTime;
+      const dur = 1.0;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, t0);
+      master.gain.exponentialRampToValueAtTime(0.6, t0 + 0.01);
+      master.gain.setValueAtTime(0.6, t0 + dur - 0.1);
+      master.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      master.connect(ctx.destination);
+      for (const f of [440, 437]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = f;
+        o.connect(master);
+        o.start(t0);
+        o.stop(t0 + dur);
+      }
+    } catch (e) {}
+  }
+
+  let shotPressTimer = null, shotLongPressed = false;
+  shotEl.addEventListener('pointerdown', () => {
+    shotLongPressed = false;
+    clearTimeout(shotPressTimer);
+    shotPressTimer = setTimeout(() => {
+      shotLongPressed = true;
+      resetShot();
+      if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
+    }, 600);
+  });
+  const cancelShotPress = () => clearTimeout(shotPressTimer);
+  shotEl.addEventListener('pointerleave', cancelShotPress);
+  shotEl.addEventListener('pointercancel', cancelShotPress);
+  shotEl.addEventListener('pointerup', () => {
+    clearTimeout(shotPressTimer);
+    if (shotLongPressed) return;
+    if (shotRunning) pauseShot();
+    else startShot();
+  });
+
   // --- Persistence: try localStorage, fall back to URL hash ---
   const STORAGE_KEY = 'scoreboard_state_v1';
   let useLocalStorage = true;
@@ -1777,7 +1898,7 @@
   }
 
   function save() {
-    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()), fa: foulsA, fb: foulsB };
+    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()), sc: Math.round(getShotMs()), fa: foulsA, fb: foulsB };
     if (useLocalStorage) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     } else {
@@ -1804,6 +1925,7 @@
       if (s.na) nameA.value = s.na;
       if (s.nb) nameB.value = s.nb;
       if (typeof s.c === 'number' && s.c >= 0) clockMs = s.c;
+      if (typeof s.sc === 'number' && s.sc >= 0) shotMs = s.sc;
     } catch (e) {}
   }
 
@@ -1863,6 +1985,7 @@
     if (confirm('Beide scores en kwart herbeginnen?')) {
       scoreA = 0; scoreB = 0; quarter = 1; foulsA = 0; foulsB = 0;
       resetClock();
+      resetShot();
       render();
     }
   });
@@ -2193,6 +2316,7 @@
   load();
   render();
   renderClock();
+  renderShot();
   updateLogo(nameA, logoA, logoMiniA, seedA);
   updateLogo(nameB, logoB, logoMiniB, seedB);
 </script>
