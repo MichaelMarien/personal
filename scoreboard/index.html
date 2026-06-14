@@ -1785,10 +1785,13 @@
   }
 
   // Whole seconds above 5s (rounding up, like real shot clocks), tenths below.
+  // Tenths also round up so the display stays consistent across the 5s boundary:
+  // otherwise "6" (ceil of 5.x) hands off to a true-value "5.0" that only lasts
+  // ~50ms, making the clock look like it jumps straight from 6 to 4.
   function formatShot(ms) {
     if (ms <= 0) return '0.0';
     const sec = ms / 1000;
-    return sec > 5 ? String(Math.ceil(sec)) : sec.toFixed(1);
+    return sec > 5 ? String(Math.ceil(sec)) : (Math.ceil(sec * 10) / 10).toFixed(1);
   }
 
   function renderShot() {
