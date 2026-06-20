@@ -40,6 +40,18 @@
   }
   .qbtn:active { background: #2c3a5e; }
   .qlabel { min-width: 110px; text-align: center; font-weight: 600; letter-spacing: 0.5px; }
+  /* Overall match/series score: games won by each team across the series. */
+  .series {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    background: #1f2a44; border-radius: 10px; padding: 4px 12px;
+    cursor: pointer; touch-action: manipulation; line-height: 1;
+  }
+  .series:active { background: #2c3a5e; }
+  .series-cap { font-size: 9px; font-weight: 700; letter-spacing: 1px; opacity: 0.5; }
+  .series-score { font-weight: 900; font-variant-numeric: tabular-nums; font-size: clamp(18px, 2.6vh, 26px); }
+  .series-side.a { color: #60a5fa; }
+  .series-side.b { color: #f87171; }
+  .series-dash { opacity: 0.45; font-weight: 600; margin: 0 2px; }
   .clock {
     font-size: clamp(22px, 3.2vh, 32px);
     font-weight: 800; font-variant-numeric: tabular-nums;
@@ -259,6 +271,10 @@
 </head>
 <body>
   <div class="quarter-bar">
+    <div class="series" id="series" role="button" tabindex="0" aria-label="Match series score — tap to award the game to the leader and start the next match, hold to set it manually">
+      <span class="series-cap">MATCH</span>
+      <span class="series-score"><span class="series-side a" id="seriesA">0</span><span class="series-dash">–</span><span class="series-side b" id="seriesB">0</span></span>
+    </div>
     <button class="qbtn" id="qMinus" aria-label="Previous quarter">−</button>
     <div class="qlabel" id="qLabel">QUARTER 1</div>
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
@@ -330,8 +346,11 @@
 
 <script>
   let scoreA = 0, scoreB = 0, quarter = 1, foulsA = 0, foulsB = 0;
+  let seriesA = 0, seriesB = 0;
   const sa = document.getElementById('scoreA');
   const sb = document.getElementById('scoreB');
+  const seriesAEl = document.getElementById('seriesA');
+  const seriesBEl = document.getElementById('seriesB');
   const fa = document.getElementById('foulA');
   const fb = document.getElementById('foulB');
   const ql = document.getElementById('qLabel');
@@ -1908,7 +1927,7 @@
   }
 
   function save() {
-    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()), sc: Math.round(getShotMs()), fa: foulsA, fb: foulsB };
+    const state = { a: scoreA, b: scoreB, q: quarter, na: nameA.value, nb: nameB.value, c: Math.round(getClockMs()), sc: Math.round(getShotMs()), fa: foulsA, fb: foulsB, ga: seriesA, gb: seriesB };
     if (useLocalStorage) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
     } else {
@@ -1932,6 +1951,8 @@
       quarter = s.q || 1;
       foulsA = s.fa || 0;
       foulsB = s.fb || 0;
+      seriesA = s.ga || 0;
+      seriesB = s.gb || 0;
       if (s.na) nameA.value = s.na;
       if (s.nb) nameB.value = s.nb;
       if (typeof s.c === 'number' && s.c >= 0) clockMs = s.c;
@@ -1944,6 +1965,8 @@
     sb.textContent = scoreB;
     fa.textContent = foulsA;
     fb.textContent = foulsB;
+    seriesAEl.textContent = seriesA;
+    seriesBEl.textContent = seriesB;
     ql.textContent = 'QUARTER ' + quarter;
     save();
   }
@@ -1999,6 +2022,60 @@
       resetShot();
       render();
     }
+  });
+
+  // --- Overall match / series score ---
+  // Award the finished game to whoever is ahead, bump the series, and reset the
+  // board (scores, fouls, quarter, clocks) so the next game can begin.
+  function awardGame() {
+    if (scoreA === scoreB) {
+      toast('Gelijkspel — geen winnaar', true);
+      return;
+    }
+    const winnerA = scoreA > scoreB;
+    const winName = (winnerA ? nameA.value : nameB.value).trim() || (winnerA ? 'Home' : 'Away');
+    if (!confirm('Match toekennen aan ' + winName + ' (' + scoreA + '–' + scoreB + ') en een nieuwe match starten?')) return;
+    if (winnerA) seriesA++; else seriesB++;
+    scoreA = 0; scoreB = 0; quarter = 1; foulsA = 0; foulsB = 0;
+    resetClock();
+    resetShot();
+    render();
+    toast('Stand: ' + seriesA + '–' + seriesB);
+  }
+
+  // Manually set the series score, e.g. "1-0".
+  function editSeries() {
+    const input = prompt('Match-stand (home-away):', seriesA + '-' + seriesB);
+    if (input === null) return;
+    const parts = input.split(/[^0-9]+/).filter(Boolean).map(n => parseInt(n, 10));
+    if (parts.length >= 2 && parts[0] >= 0 && parts[1] >= 0) {
+      seriesA = parts[0];
+      seriesB = parts[1];
+      render();
+    } else {
+      toast('Ongeldige stand', true);
+    }
+  }
+
+  // Tap = award the game to the leader; hold = set the series manually.
+  const seriesEl = document.getElementById('series');
+  let seriesPressTimer = null, seriesLongPressed = false;
+  seriesEl.addEventListener('pointerdown', () => {
+    seriesLongPressed = false;
+    clearTimeout(seriesPressTimer);
+    seriesPressTimer = setTimeout(() => {
+      seriesLongPressed = true;
+      if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
+      editSeries();
+    }, 600);
+  });
+  const cancelSeriesPress = () => clearTimeout(seriesPressTimer);
+  seriesEl.addEventListener('pointerleave', cancelSeriesPress);
+  seriesEl.addEventListener('pointercancel', cancelSeriesPress);
+  seriesEl.addEventListener('pointerup', () => {
+    clearTimeout(seriesPressTimer);
+    if (seriesLongPressed) return;
+    awardGame();
   });
 
   // --- Voice scoring (Dutch) ---
