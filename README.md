@@ -6,6 +6,7 @@ Single-file web apps. No build step, no framework — just open `index.html`.
 
 - 👑 **Prinsessen Spelletjes** — princess-themed mini-games for a 5-year-old Dutch speaker (iPad landscape): https://michaelmarien.github.io/personal/princess/
 - 🏀 **Scoreboard** — basketball scoreboard with NBA + BNXT team logos: https://michaelmarien.github.io/personal/scoreboard/
+- ⚽ **Voetbal Scorebord** — soccer scoreboard with all FIFA World Cup 2026 squads + famous European clubs: https://michaelmarien.github.io/personal/soccer/
 
 Pages is configured to deploy from `main` / root. Every push redeploys automatically (~1 min).
 
@@ -20,3 +21,6 @@ Four mini-games (memory, dress-up, find-the-item, battleship). Dutch TTS, genera
 
 ### `scoreboard/` — Scoreboard 🏀
 Two-team scoreboard with quarter tracking, fuzzy team-name matching, NBA/BNXT logos, persistent state.
+
+### `soccer/` — Voetbal Scorebord ⚽
+Two-team soccer scoreboard: goals, count-up match clock, halves/extra-time/penalties, yellow & red cards, penalty-shootout tally. Type a team name to auto-match its flag/crest (fuzzy matching) and tap the badge to browse the full squad — all 48 FIFA World Cup 2026 nations plus famous European clubs, with each player's number, position, club and stats. Country flags via flagcdn, club crests via ESPN. Persistent state, wake lock.
