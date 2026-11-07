@@ -260,6 +260,46 @@
   .stat-cell { background: linear-gradient(160deg, #1d4ed8, #1e3a8a); border-radius: 12px; padding: 16px 8px; text-align: center; }
   .stat-cell .val { font-size: 30px; font-weight: 900; font-variant-numeric: tabular-nums; }
   .stat-cell .lbl { font-size: 13px; opacity: 0.85; margin-top: 4px; font-weight: 600; }
+  /* Leaderboard / history modal */
+  .footer button.lb { background: #1d4ed8; }
+  .modal-panel.wide { max-width: 760px; }
+  .lb-tabs { display: flex; gap: 6px; padding: 10px 14px 0; }
+  .lb-tab {
+    flex: 1; padding: 9px 0; border: none; border-radius: 9px 9px 0 0;
+    background: #1a2237; color: #9aa6c4; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .lb-tab.on { background: #1f2a44; color: #fff; }
+  .lb-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .lb-table th {
+    position: sticky; top: 0; background: #1f2a44; color: #9aa6c4;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 8px 6px; text-align: right; white-space: nowrap;
+  }
+  .lb-table td { padding: 9px 6px; text-align: right; border-bottom: 1px solid #1a2237; white-space: nowrap; }
+  .lb-table th.l, .lb-table td.l { text-align: left; }
+  .lb-table td.rank { width: 22px; color: #9aa6c4; font-weight: 700; text-align: center; }
+  .lb-team { display: flex; align-items: center; gap: 8px; font-weight: 700; max-width: 210px; }
+  .lb-team span { overflow: hidden; text-overflow: ellipsis; }
+  .lb-team img { width: 24px; height: 24px; object-fit: contain; flex: 0 0 auto; }
+  .lb-table td.pct { font-weight: 800; }
+  .lb-table .pos { color: #4ade80; }
+  .lb-table .neg { color: #f87171; }
+  .lb-empty { padding: 28px 16px; text-align: center; opacity: 0.7; line-height: 1.5; }
+  .lb-game { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #1a2237; }
+  .lb-date { flex: 0 0 auto; width: 76px; font-size: 12px; opacity: 0.6; line-height: 1.25; }
+  .lb-match { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+  .lb-side { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .lb-side.r { justify-content: flex-end; text-align: right; }
+  .lb-side span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb-side img { width: 22px; height: 22px; object-fit: contain; flex: 0 0 auto; }
+  .lb-side.win { font-weight: 800; }
+  .lb-side.lose { opacity: 0.65; }
+  .lb-res { font-weight: 900; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lb-res small { display: block; font-size: 10px; font-weight: 700; opacity: 0.6; text-align: center; }
+  .lb-del { flex: 0 0 auto; background: #1f2a44; color: #fca5a5; border: none; border-radius: 8px; width: 32px; height: 32px; font-size: 16px; cursor: pointer; }
+  .lb-actions { display: flex; justify-content: center; gap: 10px; padding: 12px; }
+  .lb-actions button { background: #374151; color: #fff; border: none; border-radius: 9px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .lb-actions button.danger { background: #7f1d1d; }
   /* Landscape phone tweaks */
   @media (max-height: 480px) {
     .quarter-bar { padding: 6px; }
@@ -280,7 +320,7 @@
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
     <div class="clock shot" id="shotclock" role="timer" aria-label="Shot clock — tap to start/pause, hold to reset to 24">24</div>
-    <div class="version" aria-hidden="true">v7 · 2026-06-13</div>
+    <div class="version" aria-hidden="true">v8 · 2026-11-07</div>
   </div>
 
   <div class="teams">
@@ -328,9 +368,24 @@
     <button id="mic" class="mic" aria-label="Voice input">
       <span id="micIcon">🎤</span><span id="micLabel">Spraak</span>
     </button>
+    <button id="leaderboard" class="lb">🏆 Klassement</button>
     <button id="reset" class="danger">Herbeginnen</button>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <div id="lbModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-panel wide">
+      <div class="modal-head">
+        <div class="modal-title">🏆 Klassement<small id="lbSub"></small></div>
+        <button class="modal-x" id="lbClose" aria-label="Sluiten">×</button>
+      </div>
+      <div class="lb-tabs">
+        <button class="lb-tab on" data-tab="standings">Klassement</button>
+        <button class="lb-tab" data-tab="games">Uitslagen</button>
+      </div>
+      <div class="modal-body" id="lbBody"></div>
+    </div>
+  </div>
 
   <div id="playerModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-panel">
@@ -2036,12 +2091,213 @@
     const winName = (winnerA ? nameA.value : nameB.value).trim() || (winnerA ? 'Home' : 'Away');
     if (!confirm('Match toekennen aan ' + winName + ' (' + scoreA + '–' + scoreB + ') en een nieuwe match starten?')) return;
     if (winnerA) seriesA++; else seriesB++;
+    recordGame();
     scoreA = 0; scoreB = 0; quarter = 1; foulsA = 0; foulsB = 0;
     resetClock();
     resetShot();
     render();
     toast('Stand: ' + seriesA + '–' + seriesB);
   }
+
+  // --- Game gameHistory + NBA-style leaderboard ---
+  // Every awarded game is appended to a persistent history; standings are
+  // computed from it. Teams are grouped by their matched logo team (so "Lakers"
+  // and "LA Lakers" count as one), otherwise by normalized typed name.
+  const HISTORY_KEY = 'scoreboard_history_v1';
+  let gameHistory = [];
+  try { gameHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') || []; } catch (e) { gameHistory = []; }
+  function saveHistory() {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(gameHistory)); } catch (e) {}
+  }
+
+  function teamKey(name) {
+    const t = findTeam(name);
+    return t ? 't:' + t.id : 'n:' + normalizeName(name);
+  }
+
+  function recordGame() {
+    const na = nameA.value.trim() || 'Home';
+    const nb = nameB.value.trim() || 'Away';
+    gameHistory.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      t: Date.now(), na, nb, a: scoreA, b: scoreB, q: quarter
+    });
+    saveHistory();
+  }
+
+  function computeStandings() {
+    const teams = new Map();
+    const get = (name) => {
+      const key = teamKey(name);
+      if (!teams.has(key)) {
+        teams.set(key, { key, name, logo: null, w: 0, l: 0, pf: 0, pa: 0, hw: 0, hl: 0, aw: 0, al: 0, results: [] });
+      }
+      const rec = teams.get(key);
+      rec.name = name; // latest spelling wins
+      return rec;
+    };
+    const sorted = gameHistory.slice().sort((x, y) => x.t - y.t);
+    for (const g of sorted) {
+      const A = get(g.na), B = get(g.nb);
+      const aWin = g.a > g.b;
+      A.pf += g.a; A.pa += g.b; B.pf += g.b; B.pa += g.a;
+      if (aWin) { A.w++; A.hw++; B.l++; B.al++; } else { B.w++; B.aw++; A.l++; A.hl++; }
+      A.results.push(aWin ? 'W' : 'L');
+      B.results.push(aWin ? 'L' : 'W');
+    }
+    const list = [...teams.values()];
+    for (const r of list) {
+      const gp = r.w + r.l;
+      r.gp = gp;
+      r.pct = gp ? r.w / gp : 0;
+      r.diff = r.pf - r.pa;
+      const t = r.key.startsWith('t:') ? teamById[r.key.slice(2)] : null;
+      r.logo = t ? t.logo : null;
+      const last = r.results[r.results.length - 1];
+      let n = 0;
+      for (let i = r.results.length - 1; i >= 0 && r.results[i] === last; i--) n++;
+      r.strk = last ? last + n : '-';
+      const l10 = r.results.slice(-10);
+      r.l10 = l10.filter(x => x === 'W').length + '-' + l10.filter(x => x === 'L').length;
+    }
+    list.sort((x, y) => (y.pct - x.pct) || (y.w - x.w) || (y.diff - x.diff) || x.name.localeCompare(y.name));
+    const lead = list[0];
+    for (const r of list) {
+      r.gb = lead ? ((lead.w - r.w) + (r.l - lead.l)) / 2 : 0;
+    }
+    return list;
+  }
+
+  const lbModal = document.getElementById('lbModal');
+  const lbBody = document.getElementById('lbBody');
+  const lbSub = document.getElementById('lbSub');
+  let lbTab = 'standings';
+
+  function logoImg(src) {
+    return src ? `<img src="${esc(src)}" alt="" onerror="this.remove()">` : '';
+  }
+  function fmtPct(p) {
+    return p >= 1 ? '1.000' : p.toFixed(3).replace(/^0/, '');
+  }
+  function fmtGb(gb) {
+    return gb === 0 ? '–' : (gb % 1 ? gb.toFixed(1) : String(gb));
+  }
+  function fmtAvg(v, gp) {
+    return gp ? (v / gp).toFixed(1) : '0.0';
+  }
+  function lbActions() {
+    return gameHistory.length
+      ? `<div class="lb-actions"><button id="lbExport">Exporteren</button><button class="danger" id="lbClear">Alles wissen</button></div>`
+      : '';
+  }
+
+  function renderStandings() {
+    const list = computeStandings();
+    if (!list.length) {
+      lbBody.innerHTML = `<div class="lb-empty">Nog geen wedstrijden gespeeld.<br>Tik op <b>MATCH</b> bovenaan om een gewonnen wedstrijd toe te kennen — die komt dan in het klassement.</div>`;
+      return;
+    }
+    lbBody.innerHTML =
+      `<table class="lb-table">
+         <thead><tr>
+           <th></th><th class="l">Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th>
+           <th>Thuis</th><th>Uit</th><th>PPG</th><th>OPP</th><th>DIFF</th><th>L10</th><th>STRK</th>
+         </tr></thead>
+         <tbody>${list.map((r, i) => {
+           const d = r.gp ? (r.diff / r.gp) : 0;
+           return `<tr>
+             <td class="rank">${i + 1}</td>
+             <td class="l"><div class="lb-team">${logoImg(r.logo)}<span>${esc(r.name)}</span></div></td>
+             <td>${r.w}</td><td>${r.l}</td>
+             <td class="pct">${fmtPct(r.pct)}</td>
+             <td>${fmtGb(r.gb)}</td>
+             <td>${r.hw}-${r.hl}</td><td>${r.aw}-${r.al}</td>
+             <td>${fmtAvg(r.pf, r.gp)}</td><td>${fmtAvg(r.pa, r.gp)}</td>
+             <td class="${d > 0 ? 'pos' : d < 0 ? 'neg' : ''}">${d > 0 ? '+' : ''}${d.toFixed(1)}</td>
+             <td>${r.l10}</td>
+             <td class="${r.strk[0] === 'W' ? 'pos' : 'neg'}">${r.strk}</td>
+           </tr>`;
+         }).join('')}</tbody>
+       </table>${lbActions()}`;
+  }
+
+  function renderGames() {
+    if (!gameHistory.length) {
+      lbBody.innerHTML = `<div class="lb-empty">Nog geen uitslagen.</div>`;
+      return;
+    }
+    const games = gameHistory.slice().sort((x, y) => y.t - x.t);
+    lbBody.innerHTML = games.map(g => {
+      const ta = findTeam(g.na), tb = findTeam(g.nb);
+      const aWin = g.a > g.b;
+      const d = new Date(g.t);
+      const date = d.toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric' });
+      const time = d.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+      const ot = g.q > 4 ? (g.q === 5 ? 'OT' : (g.q - 4) + 'OT') : 'FINAL';
+      return `<div class="lb-game">
+        <div class="lb-date">${esc(date)}<br>${esc(time)}</div>
+        <div class="lb-match">
+          <div class="lb-side ${aWin ? 'win' : 'lose'}">${logoImg(ta && ta.logo)}<span>${esc(g.na)}</span></div>
+          <div class="lb-res">${g.a}–${g.b}<small>${ot}</small></div>
+          <div class="lb-side r ${aWin ? 'lose' : 'win'}"><span>${esc(g.nb)}</span>${logoImg(tb && tb.logo)}</div>
+        </div>
+        <button class="lb-del" data-del="${esc(g.id)}" aria-label="Wedstrijd verwijderen">🗑</button>
+      </div>`;
+    }).join('') + lbActions();
+  }
+
+  function renderLeaderboard() {
+    const n = gameHistory.length;
+    lbSub.textContent = n + (n === 1 ? ' wedstrijd' : ' wedstrijden') + ' gespeeld';
+    lbModal.querySelectorAll('.lb-tab').forEach(b => b.classList.toggle('on', b.dataset.tab === lbTab));
+    if (lbTab === 'standings') renderStandings(); else renderGames();
+  }
+  function openLeaderboard() {
+    renderLeaderboard();
+    lbBody.scrollTop = 0;
+    lbModal.classList.add('show');
+    lbModal.setAttribute('aria-hidden', 'false');
+  }
+  function closeLeaderboard() {
+    lbModal.classList.remove('show');
+    lbModal.setAttribute('aria-hidden', 'true');
+  }
+
+  document.getElementById('leaderboard').addEventListener('click', openLeaderboard);
+  document.getElementById('lbClose').addEventListener('click', closeLeaderboard);
+  lbModal.addEventListener('click', e => {
+    if (e.target === lbModal) return closeLeaderboard();
+    const tab = e.target.closest('.lb-tab');
+    if (tab) { lbTab = tab.dataset.tab; renderLeaderboard(); lbBody.scrollTop = 0; return; }
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      const g = gameHistory.find(x => x.id === del.dataset.del);
+      if (g && confirm('Wedstrijd ' + g.na + ' ' + g.a + '–' + g.b + ' ' + g.nb + ' verwijderen?')) {
+        gameHistory = gameHistory.filter(x => x !== g);
+        saveHistory();
+        renderLeaderboard();
+      }
+      return;
+    }
+    if (e.target.id === 'lbClear') {
+      if (confirm('Alle ' + gameHistory.length + ' wedstrijden en het klassement wissen?')) {
+        gameHistory = [];
+        saveHistory();
+        renderLeaderboard();
+      }
+      return;
+    }
+    if (e.target.id === 'lbExport') {
+      const rows = [['datum', 'thuis', 'uit', 'score_thuis', 'score_uit', 'kwarten']]
+        .concat(gameHistory.map(g => [new Date(g.t).toISOString(), g.na, g.nb, g.a, g.b, g.q]));
+      const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      a.download = 'scoreboard-uitslagen.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && lbModal.classList.contains('show')) closeLeaderboard(); });
 
   // Manually set the series score, e.g. "1-0".
   function editSeries() {

@@ -20,7 +20,7 @@ Open the URL in Safari → **Share** → **Add to Home Screen** → launches ful
 Four mini-games (memory, dress-up, find-the-item, battleship). Dutch TTS, generated SFX, drag-and-drop, wake lock. See `princess/docs/` for design spec and implementation plan.
 
 ### `scoreboard/` — Scoreboard 🏀
-Two-team scoreboard with quarter tracking, fuzzy team-name matching, NBA/BNXT logos, persistent state.
+Two-team scoreboard with quarter tracking, fuzzy team-name matching, NBA/BNXT logos, persistent state. Every awarded match (tap **MATCH**) is saved to a game history; the **🏆 Klassement** button shows NBA-style standings (W, L, PCT, GB, home/away, PPG, OPP, DIFF, L10, streak) and a results list with delete + CSV export.
 
 ### `soccer/` — Voetbal Scorebord ⚽
 Two-team soccer scoreboard: goals, count-up match clock, halves/extra-time/penalties, yellow & red cards, penalty-shootout tally. Type a team name to auto-match its flag/crest (fuzzy matching) and tap the badge to browse the full squad — all 48 FIFA World Cup 2026 nations plus famous European clubs, with each player's number, position, club and stats. Country flags via flagcdn, club crests via ESPN. Persistent state, wake lock.
