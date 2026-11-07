@@ -312,7 +312,7 @@
     <button class="qbtn" id="qPlus" aria-label="Next quarter">+</button>
     <div class="clock" id="clock" role="timer" aria-label="Game clock — tap to start/pause, hold to reset">10:00</div>
     <div class="clock shot" id="shotclock" role="timer" aria-label="Shot clock — tap to start/pause, hold to reset to 24">24</div>
-    <div class="version" aria-hidden="true">v9 · 2026-11-07</div>
+    <div class="version" aria-hidden="true">v10 · 2026-11-07</div>
   </div>
 
   <div class="teams">
@@ -2094,6 +2094,17 @@
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(gameHistory)); } catch (e) {}
   }
 
+  // Official display name for a matched team: its first (full) alias in title
+  // case, so "chicago culls" shows as "Chicago Bulls" in the leaderboard.
+  const UPPER_WORDS = new Set(['usa', 'fc', 'as', 'bc', 'gsg']);
+  function teamFullName(t) {
+    return t.names[0].split(' ').map(w => UPPER_WORDS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+  function displayName(name) {
+    const t = findTeam(name);
+    return t ? teamFullName(t) : name;
+  }
+
   function teamKey(name) {
     const t = findTeam(name);
     return t ? 't:' + t.id : 'n:' + normalizeName(name);
@@ -2117,7 +2128,7 @@
         teams.set(key, { key, name, logo: null, w: 0, l: 0, pf: 0, pa: 0, hw: 0, hl: 0, aw: 0, al: 0, results: [] });
       }
       const rec = teams.get(key);
-      rec.name = name; // latest spelling wins
+      rec.name = displayName(name); // official name for known teams, else latest spelling
       return rec;
     };
     const sorted = gameHistory.slice().sort((x, y) => x.t - y.t);
@@ -2221,9 +2232,9 @@
       return `<div class="lb-game">
         <div class="lb-date">${esc(date)}<br>${esc(time)}</div>
         <div class="lb-match">
-          <div class="lb-side ${aWin ? 'win' : 'lose'}">${logoImg(ta && ta.logo)}<span>${esc(g.na)}</span></div>
+          <div class="lb-side ${aWin ? 'win' : 'lose'}">${logoImg(ta && ta.logo)}<span>${esc(displayName(g.na))}</span></div>
           <div class="lb-res">${g.a}–${g.b}<small>${ot}</small></div>
-          <div class="lb-side r ${aWin ? 'lose' : 'win'}"><span>${esc(g.nb)}</span>${logoImg(tb && tb.logo)}</div>
+          <div class="lb-side r ${aWin ? 'lose' : 'win'}"><span>${esc(displayName(g.nb))}</span>${logoImg(tb && tb.logo)}</div>
         </div>
         <button class="lb-del" data-del="${esc(g.id)}" aria-label="Wedstrijd verwijderen">🗑</button>
       </div>`;
@@ -2256,7 +2267,7 @@
     const del = e.target.closest('[data-del]');
     if (del) {
       const g = gameHistory.find(x => x.id === del.dataset.del);
-      if (g && confirm('Wedstrijd ' + g.na + ' ' + g.a + '–' + g.b + ' ' + g.nb + ' verwijderen?')) {
+      if (g && confirm('Wedstrijd ' + displayName(g.na) + ' ' + g.a + '–' + g.b + ' ' + displayName(g.nb) + ' verwijderen?')) {
         gameHistory = gameHistory.filter(x => x !== g);
         saveHistory();
         renderLeaderboard();
@@ -2273,7 +2284,7 @@
     }
     if (e.target.id === 'lbExport') {
       const rows = [['datum', 'thuis', 'uit', 'score_thuis', 'score_uit', 'kwarten']]
-        .concat(gameHistory.map(g => [new Date(g.t).toISOString(), g.na, g.nb, g.a, g.b, g.q]));
+        .concat(gameHistory.map(g => [new Date(g.t).toISOString(), displayName(g.na), displayName(g.nb), g.a, g.b, g.q]));
       const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
